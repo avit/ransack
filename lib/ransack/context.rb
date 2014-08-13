@@ -171,5 +171,9 @@ module Ransack
     def searchable_associations(str = '')
       traverse(str).ransackable_associations(auth_object)
     end
+
+    def alias_tracker
+      @join_dependency.alias_tracker
+    end
   end
 end

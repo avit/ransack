@@ -66,10 +66,6 @@ module Ransack
           parent.table
         end
 
-        def alias_tracker
-          @join_dependency.alias_tracker
-        end
-
         def klassify(obj)
           if Class === obj && ::ActiveRecord::Base > obj
             obj
