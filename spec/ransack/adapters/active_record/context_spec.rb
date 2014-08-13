@@ -6,6 +6,8 @@ module Ransack
       describe Context do
         subject { Context.new(Person) }
 
+        its(:alias_tracker) { should be_a ::ActiveRecord::Associations::AliasTracker }
+
         describe '#relation_for' do
           it 'returns relation for given object' do
             expect(subject.object).to be_an ::ActiveRecord::Relation
