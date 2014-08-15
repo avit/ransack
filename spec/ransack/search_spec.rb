@@ -45,7 +45,7 @@ module Ransack
         shared_context = Context.for(Person)
         search1 = Search.new(Person, {"name_eq" => "A"}, context: shared_context)
         search2 = Search.new(Person, {"name_eq" => "B"}, context: shared_context)
-        expect(search1.context.alias_tracker).to be search2.context.alias_tracker
+        expect(search1.context).to be search2.context
       end
     end
 
