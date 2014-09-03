@@ -9,10 +9,11 @@ Ransack is a rewrite of [MetaSearch]
 (https://github.com/activerecord-hackery/meta_search)
 created by [Ernie Miller](http://twitter.com/erniemiller)
 and maintained by [Ryan Bigg](http://twitter.com/ryanbigg),
-[Jon Atack](http://twitter.com/jonatack) and a great group of [contributors](https://github.com/activerecord-hackery/ransack/graphs/contributors).
+[Jon Atack](http://twitter.com/jonatack) and a great group of [contributors]
+(https://github.com/activerecord-hackery/ransack/graphs/contributors).
 While it supports many of the same features as MetaSearch, its underlying
 implementation differs greatly from MetaSearch,
-and _backwards compatibility is not a design goal._
+and backwards compatibility is not a design goal.
 
 Ransack enables the creation of both simple and
 [advanced](http://ransack-demo.herokuapp.com/users/advanced_search)
@@ -25,9 +26,12 @@ instead.
 
 ## Getting started
 
-Because ActiveRecord has been evolving quite a bit, your friendly Ransack is available in several flavors! Take your pick:
+Because ActiveRecord has been evolving quite a bit, your friendly Ransack is
+available in several flavors! Take your pick:
 
-In your Gemfile, for the last officially released gem for Rails 3, 4.0 and 4.1:
+In your Gemfile, for the last officially released gem compatible with Rails
+3.x, 4.0 and 4.1 (for Rails 4.2, use the dedicated `rails-4.2` branch described
+below for now):
 
 ```ruby
 gem 'ransack'
@@ -39,19 +43,25 @@ Or if you want to use the latest updates on the Ransack master branch:
 gem 'ransack', github: 'activerecord-hackery/ransack'
 ```
 
-If you are using Rails 4.1, you may prefer the dedicated [Rails 4.1 branch](https://github.com/activerecord-hackery/ransack/tree/rails-4.1) which contains the latest updates, supports only 4.1, and is lighter and somewhat faster:
+If you are using Rails 4.1, you may prefer the dedicated [Rails 4.1 branch]
+(https://github.com/activerecord-hackery/ransack/tree/rails-4.1) which
+contains the latest updates, supports only 4.1, and is lighter and somewhat
+faster:
 
 ```ruby
 gem 'ransack', github: 'activerecord-hackery/ransack', branch: 'rails-4.1'
 ```
 
-Similarly, if you are using Rails 4.0, you may prefer the dedicated [Rails 4 branch](https://github.com/activerecord-hackery/ransack/tree/rails-4) for the same reasons:
+Similarly, if you are using Rails 4.0, you may prefer the dedicated
+[Rails 4 branch](https://github.com/activerecord-hackery/ransack/tree/rails-4)
+for the same reasons:
 
 ```ruby
 gem 'ransack', github: 'activerecord-hackery/ransack', branch: 'rails-4'
 ```
 
-Last but definitely not least, an experimental [Rails 4.2 branch](https://github.com/activerecord-hackery/ransack/tree/rails-4.2) is available for those on the edge:
+Last but definitely not least, an experimental [Rails 4.2 branch]
+(https://github.com/activerecord-hackery/ransack/tree/rails-4.2) is available:
 
 ```ruby
 gem 'ransack', github: 'activerecord-hackery/ransack', branch: 'rails-4.2'
@@ -112,9 +122,10 @@ end
 ####In your view
 
 The two primary Ransack view helpers are `search_form_for` and `sort_link`,
-which are defined in [Ransack::Helpers::FormHelper](lib/ransack/helpers/form_helper.rb).
+which are defined in
+[Ransack::Helpers::FormHelper](lib/ransack/helpers/form_helper.rb).
 
-#####Ransack's `search_form_for` helper replaces `form_for` for creating the view search form:
+#####1. Ransack's `search_form_for` helper replaces `form_for` for creating the view search form:
 
 ```erb
 <%= search_form_for @q do |f| %>
@@ -128,9 +139,10 @@ which are defined in [Ransack::Helpers::FormHelper](lib/ransack/helpers/form_hel
 
 `cont` (contains) and `start` (starts with) are just two of the available
 search predicates. See [Constants]
-(https://github.com/activerecord-hackery/ransack/blob/master/lib/ransack/constants.rb) for a full list and the [wiki]
-(https://github.com/activerecord-hackery/ransack/wiki/Basic-Searching) for more
-information.
+(https://github.com/activerecord-hackery/ransack/blob/master/lib/ransack/constants.rb)
+for a full list and the [wiki]
+(https://github.com/activerecord-hackery/ransack/wiki/Basic-Searching)
+for more information.
 
 The `search_form_for` answer format can be set like this:
 ```erb
@@ -139,7 +151,7 @@ The `search_form_for` answer format can be set like this:
 <%= search_form_for(@q, format: :json) do |f| %>
 ```
 
-#####Ransack's `sort_link` helper is useful for creating table headers that are sortable links:
+#####2. Ransack's `sort_link` helper creates table headers that are sortable links:
 
 ```erb
 <%= content_tag :th, sort_link(@q, :name) %>
@@ -201,9 +213,10 @@ Article.search(params[:q])
 Article.ransack(params[:q])
 ```
 
-### has_many and belongs_to associations
+### Associations
 
-You can easily use Ransack to search in associated objects.
+You can easily use Ransack to search for objects in `has_many` and `belongs_to`
+associations.
 
 Given you have these associations ...
 
@@ -233,8 +246,8 @@ end
 ```ruby
 class SupervisorsController < ApplicationController
   def index
-    @search = Supervisor.search(params[:q])
-    @supervisors = @search.result.includes(:department, :employees)
+    @q = Supervisor.search(params[:q])
+    @supervisors = @q.result.includes(:department, :employees)
   end
 end
 ```
@@ -242,7 +255,7 @@ end
 ... you might set up your form like this ...
 
 ```erb
-<%= search_form_for @search do |f| %>
+<%= search_form_for @q do |f| %>
   <%= f.label :last_name_cont %>
   <%= f.search_field :last_name_cont %>
 
@@ -286,34 +299,117 @@ ENV['RANSACK_FORM_BUILDER'] = '::SimpleForm::FormBuilder'
 require 'rails/all'
 ```
 
-### Authorization
+### Authorization (whitelisting/blacklisting)
 
-By default, Ransack exposes search on any model column, so make sure you
-sanitize your params and only pass the allowed keys. Alternately, you can define these class methods on your models to apply selective authorization
-based on a given auth object:
+By default, searching and sorting are authorized on any column of your model.
+Ransack adds four methods to `ActiveRecord::Base` that you can redefine as
+class methods in your models to apply selective authorization:
+`ransackable_attributes`, `ransackable_associations`, `ransackable_scopes` and
+`ransortable_attributes`.
 
-* `def self.ransackable_attributes(auth_object = nil)`
-* `def self.ransackable_associations(auth_object = nil)`
-* `def self.ransackable_scopes(auth_object = nil)`
-* `def self.ransortable_attributes(auth_object = nil)` (for sorting)
+Here is how these four methods are implemented in Ransack:
 
-Any values not included in the arrays returned from these methods will be
-ignored. The auth object should be optional when building the search, and is
-ignored by default:
+```ruby
+def ransackable_attributes(auth_object = nil)
+  # Returns the string names of all columns and any defined ransackers.
+  column_names + _ransackers.keys
+end
 
+def ransackable_associations(auth_object = nil)
+  # Returns the names of all associations.
+  reflect_on_all_associations.map { |a| a.name.to_s }
+  end
+
+def ransackable_scopes(auth_object = nil)
+  # For overriding with a whitelist of symbols.
+  []
+end
+
+def ransortable_attributes(auth_object = nil)
+  # Here so users can overwrite the attributes that show up in the sort_select.
+  ransackable_attributes(auth_object)
+end
 ```
-Employee.search({ salary_gt: 100000 }, { auth_object: current_user })
+
+Any values not returned from these methods will be ignored by Ransack.
+
+All four methods can receive a single optional parameter, `auth_object`. When
+you call the search or ransack method on your model, you can provide a value
+for an `auth_object` key in the options hash which can be used by your own
+overridden methods.
+
+Here is an example that puts all this together, adapted from
+[this blog post by Ernie Miller]
+(http://erniemiller.org/2012/05/11/why-your-ruby-class-macros-might-suck-mine-did/).
+In an `Article` model, add the following `ransackable_attributes` class method
+(preferably private):
+```ruby
+# article.rb
+class Article < ActiveRecord::Base
+
+  private
+
+  def self.ransackable_attributes(auth_object = nil)
+    if auth_object == :admin
+      # whitelist all attributes for admin
+      super
+    else
+      # whitelist only the title and body attributes for other users
+      super & %w(title body) 
+    end
+  end
+end
 ```
+Here is example code for the `articles_controller`:
+```ruby
+# articles_controller.rb
+class ArticlesController < ApplicationController
+
+  def index
+    @q = Article.search(params[:q], auth_object: set_ransack_auth_object)
+    @articles = @q.result
+  end
+  
+  private
+
+  def set_ransack_auth_object
+    current_user.admin? ? :admin : nil
+  end
+end
+```
+Trying it out in `rails console`:
+```ruby
+> Article
+=> Article(id: integer, person_id: integer, title: string, body: text) 
+
+> Article.ransackable_attributes
+=> ["title", "body"] 
+
+> Article.ransackable_attributes(:admin)
+=> ["id", "person_id", "title", "body"] 
+
+> Article.search(id_eq: 1).result.to_sql
+=> SELECT "articles".* FROM "articles"  # Note that search param was ignored!
+
+> Article.search({ id_eq: 1 }, { auth_object: nil }).result.to_sql
+=> SELECT "articles".* FROM "articles"  # Search param still ignored!
+
+> Article.search({ id_eq: 1 }, { auth_object: :admin }).result.to_sql
+=> SELECT "articles".* FROM "articles"  WHERE "articles"."id" = 1
+```
+That's it! Now you know how to whitelist/blacklist various elements in Ransack.
 
 ### Scopes
 
-Searching by scope requires defining a whitelist of `ransackable_scopes` on the
-model class. By default all class methods (e.g. scopes) are ignored. Scopes
-will be applied for matching `true` values, or for given values if the scope
-accepts a value:
+Continuing on from the preceding section, searching by scope requires defining
+a whitelist of `ransackable_scopes` on the model class. By default, all class
+methods (e.g. scopes) are ignored. Scopes will be applied for matching `true`
+values, or for given values if the scope accepts a value:
 
-```
+```ruby
 Employee.search({ active: true, hired_since: '2013-01-01' })
+
+Employee.search({ salary_gt: 100_000 }, { auth_object: current_user })
 ```
 
 ### I18n
