@@ -207,10 +207,10 @@ module Ransack
         def apply_default_conditions(join_association)
           reflection = join_association.reflection
           return if reflection.instance_variable_get(:@_ransack_applied_default_conditions)
-          default_scope = join_association.active_record.scoped
-          default_conditions = default_scope.arel.where_clauses
-          if default_conditions.any?
-            reflection.options[:conditions] = default_conditions
+          assoc_scope = join_association.active_record.where(reflection.options[:conditions])
+          assoc_conditions = assoc_scope.arel.constraints
+          if assoc_conditions.any?
+            reflection.options[:conditions] = assoc_conditions.reduce(&:and)
           end
           reflection.instance_variable_set(:@_ransack_applied_default_conditions, true)
         end
