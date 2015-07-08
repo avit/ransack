@@ -22,20 +22,20 @@ module Ransack
 
         def type_for(attr)
           return nil unless attr && attr.valid?
-          name    = attr.arel_attribute.name.to_s
-          table   = attr.arel_attribute.relation.table_name
-
-          schema_cache = @engine.connection.schema_cache
-          raise "No table named #{table} exists" unless schema_cache.table_exists?(table)
-          schema_cache.columns_hash(table)[name].type
+          name        = attr.arel_attribute.name.to_s
+          table       = attr.arel_attribute.relation.table_name
+          connection  = attr.klass.connection
+          unless connection.table_exists?(table)
+            raise "No table named #{table} exists"
+          end
+          connection.schema_cache.columns_hash(table)[name].type
         end
 
         def evaluate(search, opts = {})
           viz = Visitor.new
           relation = @object.where(viz.accept(search.base))
           if search.sorts.any?
-            relation = relation.except(:order)
-            .reorder(viz.accept(search.sorts))
+            relation = relation.except(:order).reorder(viz.accept(search.sorts))
           end
           opts[:distinct] ? relation.distinct : relation
         end
@@ -47,15 +47,16 @@ module Ransack
           elsif (segments = str.split(/_/)).size > 1
             remainder = []
             found_assoc = nil
-            while !found_assoc && remainder.unshift(
-              segments.pop) && segments.size > 0 do
+            while !found_assoc && remainder.unshift(segments.pop) &&
+            segments.size > 0 do
               assoc, poly_class = unpolymorphize_association(
-                segments.join('_')
+                segments.join(Constants::UNDERSCORE)
                 )
               if found_assoc = get_association(assoc, klass)
-                exists = attribute_method?(remainder.join('_'),
+                exists = attribute_method?(
+                  remainder.join(Constants::UNDERSCORE),
                   poly_class || found_assoc.klass
-                )
+                  )
               end
             end
           end
@@ -78,7 +79,7 @@ module Ransack
           end
         end
 
-        if ::ActiveRecord::VERSION::STRING >= '4.1'
+        if ::ActiveRecord::VERSION::STRING >= Constants::RAILS_4_1
 
           def join_associations
             raise NotImplementedError,
@@ -93,7 +94,12 @@ module Ransack
           # JoinDependency to track table aliases.
           #
           def join_sources
-            base = Arel::SelectManager.new(@object.engine, @object.table)
+            base =
+              if ::ActiveRecord::VERSION::MAJOR >= 5
+                Arel::SelectManager.new(@object.table)
+              else
+                Arel::SelectManager.new(@object.engine, @object.table)
+              end
             joins = @join_dependency.join_constraints(@object.joins_values)
             joins.each do |aliased_join|
               base.from(aliased_join)
@@ -133,16 +139,20 @@ module Ransack
 
           if ransackable_attribute?(str, klassify(parent))
             attr_name = str
-          elsif (segments = str.split(/_/)).size > 1
+          elsif (segments = str.split(Constants::UNDERSCORE)).size > 1
             remainder = []
             found_assoc = nil
-            while remainder.unshift(
-              segments.pop) && segments.size > 0 && !found_assoc do
-              assoc, klass = unpolymorphize_association(segments.join('_'))
+            while remainder.unshift(segments.pop) && segments.size > 0 &&
+            !found_assoc do
+              assoc, klass = unpolymorphize_association(
+                segments.join(Constants::UNDERSCORE)
+                )
               if found_assoc = get_association(assoc, parent)
-                join = build_or_find_association(found_assoc.name, parent, klass)
+                join = build_or_find_association(
+                  found_assoc.name, parent, klass
+                  )
                 parent, attr_name = get_parent_and_attribute_name(
-                  remainder.join('_'), join
+                  remainder.join(Constants::UNDERSCORE), join
                   )
               end
             end
@@ -154,47 +164,48 @@ module Ransack
         def get_association(str, parent = @base)
           klass = klassify parent
           ransackable_association?(str, klass) &&
-            klass.reflect_on_all_associations.detect { |a| a.name.to_s == str }
+          klass.reflect_on_all_associations.detect { |a| a.name.to_s == str }
         end
 
         def join_dependency(relation)
           if relation.respond_to?(:join_dependency) # Squeel will enable this
             relation.join_dependency
           else
-            build_join_dependency(relation)
+            build_joins(relation)
           end
         end
 
         # Checkout active_record/relation/query_methods.rb +build_joins+ for
         # reference. Lots of duplicated code maybe we can avoid it
-        def build_join_dependency(relation)
+        def build_joins(relation)
           buckets = relation.joins_values.group_by do |join|
             case join
             when String
-              'string_join'
+              :string_join
             when Hash, Symbol, Array
-              'association_join'
-            when JoinDependency, JoinDependency::JoinAssociation
-              'stashed_join'
+              :association_join
+            when Polyamorous::JoinDependency, Polyamorous::JoinAssociation
+              :stashed_join
             when Arel::Nodes::Join
-              'join_node'
+              :join_node
             else
               raise 'unknown class: %s' % join.class.name
             end
           end
+          buckets.default = []
+          association_joins         = buckets[:association_join]
+          stashed_association_joins = buckets[:stashed_join]
+          join_nodes                = buckets[:join_node].uniq
+          string_joins              = buckets[:string_join].map(&:strip).uniq
 
-          association_joins         = buckets['association_join'] || []
-
-          stashed_association_joins = buckets['stashed_join'] || []
-
-          join_nodes                = buckets['join_node'] || []
-
-          string_joins              = (buckets['string_join'] || [])
-                                      .map { |x| x.strip }
-                                      .uniq
-
-          join_list = relation.send :custom_join_ast,
-            relation.table.from(relation.table), string_joins
+          join_list =
+            if ::ActiveRecord::VERSION::MAJOR >= 5
+              join_nodes +
+              convert_join_strings_to_ast(relation.table, string_joins)
+            else
+              relation.send :custom_join_ast,
+                relation.table.from(relation.table), string_joins
+            end
 
           join_dependency = JoinDependency.new(
             relation.klass, association_joins, join_list
@@ -204,14 +215,21 @@ module Ransack
             join_dependency.alias_tracker.aliases[join.left.name.downcase] = 1
           end
 
-          if ::ActiveRecord::VERSION::STRING >= '4.1'
+          if ::ActiveRecord::VERSION::STRING >= Constants::RAILS_4_1
             join_dependency
           else
             join_dependency.graft(*stashed_association_joins)
           end
         end
 
-        if ::ActiveRecord::VERSION::STRING >= '4.1'
+        def convert_join_strings_to_ast(table, joins)
+          joins
+          .flatten
+          .reject(&:blank?)
+          .map { |join| table.create_string_join(Arel.sql(join)) }
+        end
+
+        if ::ActiveRecord::VERSION::STRING >= Constants::RAILS_4_1
 
           def build_or_find_association(name, parent = @base, klass = nil)
             found_association = @join_dependency.join_root.children

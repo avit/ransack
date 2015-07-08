@@ -66,7 +66,7 @@ module Ransack
           end
         when Hash
           args.each do |index, attrs|
-            attr = Attribute.new(@context, attrs[:name])
+            attr = Attribute.new(@context, attrs[:name], attrs[:ransacker_args])
             self.attributes << attr if attr.valid?
           end
         else
@@ -105,7 +105,7 @@ module Ransack
       end
 
       def combinator=(val)
-        @combinator = ['and', 'or'].detect { |v| v == val.to_s } || nil
+        @combinator = Constants::AND_OR.detect { |v| v == val.to_s } || nil
       end
       alias :m= :combinator=
       alias :m :combinator
@@ -123,9 +123,11 @@ module Ransack
       end
 
       def value
-        predicate.wants_array ?
-          values.map { |v| v.cast(default_type) } :
+        if predicate.wants_array
+          values.map { |v| v.cast(default_type) }
+        else
           values.first.cast(default_type)
+        end
       end
 
       def build(params)
@@ -171,23 +173,7 @@ module Ransack
       alias :p :predicate_name
 
       def arel_predicate
-        predicates = attributes.map do |attr|
-          attr.attr.send(
-            arel_predicate_for_attribute(attr),
-            formatted_values_for_attribute(attr)
-          )
-        end
-
-        if predicates.size > 1
-          case combinator
-          when 'and'
-            Arel::Nodes::Grouping.new(Arel::Nodes::And.new(predicates))
-          when 'or'
-            predicates.inject(&:or)
-          end
-        else
-          predicates.first
-        end
+        raise "not implemented"
       end
 
       def validated_values
@@ -200,8 +186,9 @@ module Ransack
 
       def formatted_values_for_attribute(attr)
         formatted = casted_values_for_attribute(attr).map do |val|
-          val = attr.ransacker.formatter.call(val) if
-            attr.ransacker && attr.ransacker.formatter
+          if attr.ransacker && attr.ransacker.formatter
+            val = attr.ransacker.formatter.call(val)
+          end
           val = predicate.format(val)
           val
         end
@@ -226,22 +213,21 @@ module Ransack
 
       def inspect
         data = [
-          ['attributes', a.try(:map, &:name)],
-          ['predicate', p],
-          ['combinator', m],
-          ['values', v.try(:map, &:value)]
+          ['attributes'.freeze, a.try(:map, &:name)],
+          ['predicate'.freeze, p],
+          [Constants::COMBINATOR, m],
+          ['values'.freeze, v.try(:map, &:value)]
         ]
         .reject { |e| e[1].blank? }
         .map { |v| "#{v[0]}: #{v[1]}" }
-        .join(', ')
+        .join(Constants::COMMA_SPACE)
         "Condition <#{data}>"
       end
 
       private
 
       def valid_combinator?
-        attributes.size < 2 ||
-        ['and', 'or'].include?(combinator)
+        attributes.size < 2 || Constants::AND_OR.include?(combinator)
       end
 
     end

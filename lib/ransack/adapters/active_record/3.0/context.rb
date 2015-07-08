@@ -29,8 +29,12 @@ module Ransack
             relation = relation.except(:order)
             .reorder(viz.accept(search.sorts))
           end
-          opts[:distinct] ?
-          relation.select("DISTINCT #{@klass.quoted_table_name}.*") : relation
+          if opts[:distinct]
+            relation.select(Constants::DISTINCT + @klass.quoted_table_name +
+              Constants::DOT_ASTERIX)
+          else
+            relation
+          end
         end
 
         def attribute_method?(str, klass = @klass)
@@ -44,11 +48,12 @@ module Ransack
             while !found_assoc && remainder.unshift(segments.pop) &&
               segments.size > 0 do
               assoc, poly_class = unpolymorphize_association(
-                segments.join('_')
+                segments.join(Constants::UNDERSCORE)
                 )
               if found_assoc = get_association(assoc, klass)
                 exists = attribute_method?(
-                  remainder.join('_'), poly_class || found_assoc.klass
+                  remainder.join(Constants::UNDERSCORE),
+                  poly_class || found_assoc.klass
                   )
               end
             end
@@ -96,13 +101,15 @@ module Ransack
             found_assoc = nil
             while remainder.unshift(segments.pop) && segments.size > 0 &&
               !found_assoc do
-              assoc, klass = unpolymorphize_association(segments.join('_'))
+              assoc, klass = unpolymorphize_association(
+                segments.join(Constants::UNDERSCORE)
+                )
               if found_assoc = get_association(assoc, parent)
                 join = build_or_find_association(
                   found_assoc.name, parent, klass
                   )
                 parent, attr_name = get_parent_and_attribute_name(
-                  remainder.join('_'), join
+                  remainder.join(Constants::UNDERSCORE), join
                   )
               end
             end
@@ -128,24 +135,25 @@ module Ransack
           buckets = relation.joins_values.group_by do |join|
             case join
             when String
-              'string_join'
+              Constants::STRING_JOIN
             when Hash, Symbol, Array
-              'association_join'
+              Constants::ASSOCIATION_JOIN
             when ::ActiveRecord::Associations::ClassMethods::JoinDependency::JoinAssociation
-              'stashed_join'
+              Constants::STASHED_JOIN
             when Arel::Nodes::Join
-              'join_node'
+              Constants::JOIN_NODE
             else
               raise 'unknown class: %s' % join.class.name
             end
           end
 
-          association_joins         = buckets['association_join'] || []
-          stashed_association_joins = buckets['stashed_join'] || []
-          join_nodes                = buckets['join_node'] || []
-          string_joins              = (buckets['string_join'] || [])
-                                      .map { |x| x.strip }
-                                      .uniq
+          association_joins = buckets[Constants::ASSOCIATION_JOIN] || []
+
+          stashed_association_joins = buckets[Constants::STASHED_JOIN] || []
+
+          join_nodes = buckets[Constants::JOIN_NODE] || []
+
+          string_joins = (buckets[Constants::STRING_JOIN] || []).map(&:strip).uniq
 
           join_list = relation.send :custom_join_sql, (string_joins + join_nodes)
 
@@ -184,11 +192,13 @@ module Ransack
 
         def apply_default_conditions(join_association)
           reflection = join_association.reflection
-          default_scope = join_association.active_record.scoped
-          default_conditions = default_scope.arel.where_clauses
-          if default_conditions.any?
-            reflection.options[:conditions] = default_conditions
+          return if reflection.instance_variable_get(:@_ransack_applied_default_conditions)
+          assoc_scope = join_association.active_record.where(reflection.options[:conditions])
+          assoc_conditions = assoc_scope.arel.constraints
+          if assoc_conditions.any?
+            reflection.options[:conditions] = assoc_conditions.reduce(&:and)
           end
+          reflection.instance_variable_set(:@_ransack_applied_default_conditions, true)
         end
 
       end

@@ -8,6 +8,7 @@ module Ransack
 
       class << self
         def extract(context, str)
+          return unless str
           attr, direction = str.split(/\s+/,2)
           self.new(context).build(name: attr, dir: direction)
         end
@@ -25,8 +26,8 @@ module Ransack
 
       def valid?
         bound? && attr &&
-          context.klassify(parent).ransortable_attributes(context.auth_object)
-          .include?(attr_name)
+        context.klassify(parent).ransortable_attributes(context.auth_object)
+        .include?(attr_name)
       end
 
       def name=(name)
@@ -35,8 +36,13 @@ module Ransack
       end
 
       def dir=(dir)
-        dir = dir.try(:downcase)
-        @dir = %w(asc desc).include?(dir) ? dir : 'asc'
+        dir = dir.downcase if dir
+        @dir =
+          if Constants::ASC_DESC.include?(dir)
+            dir
+          else
+            Constants::ASC
+          end
       end
 
     end
