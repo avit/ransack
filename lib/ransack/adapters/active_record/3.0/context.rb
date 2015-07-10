@@ -182,23 +182,17 @@ module Ransack
               :build, Polyamorous::Join.new(name, @join_type, klass), parent
               )
             found_association = @join_dependency.join_associations.last
-            apply_default_conditions(found_association)
+
+            default_conditions = found_association.active_record.scoped.arel.constraints
+            if default_conditions.any?
+              and_default_conditions = "AND #{default_conditions.reduce(&:and).to_sql}"
+            end
+
             # Leverage the stashed association functionality in AR
-            @object = @object.joins(found_association)
+            @object = @object.joins(found_association).joins(and_default_conditions)
           end
 
           found_association
-        end
-
-        def apply_default_conditions(join_association)
-          reflection = join_association.reflection
-          return if reflection.instance_variable_get(:@_ransack_applied_default_conditions)
-          assoc_scope = join_association.active_record.where(reflection.options[:conditions])
-          assoc_conditions = assoc_scope.arel.constraints
-          if assoc_conditions.any?
-            reflection.options[:conditions] = assoc_conditions.reduce(&:and)
-          end
-          reflection.instance_variable_set(:@_ransack_applied_default_conditions, true)
         end
 
       end
