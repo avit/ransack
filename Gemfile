@@ -6,10 +6,11 @@ gem 'rake'
 rails = ENV['RAILS'] || '4-2-stable'
 
 if rails == 'master'
+  gem 'rack', github: 'rack/rack'
   gem 'arel', github: 'rails/arel'
   gem 'polyamorous', github: 'activerecord-hackery/polyamorous'
 else
-  gem 'polyamorous', '~> 1.2'
+  gem 'polyamorous', '~> 1.3'
 end
 
 gem 'pry'
@@ -41,8 +42,12 @@ else
   end
 end
 
-if ENV['DB'] =~ /mongodb/
+if ENV['DB'] =~ /mongoid4/
   gem 'mongoid', '~> 4.0.0', require: false
+end
+
+if ENV['DB'] =~ /mongoid5/
+  gem 'mongoid', '~> 5.0.0', require: false
 end
 
 # Removed from Ruby 2.2 but needed for testing Rails 3.x.

@@ -1,9 +1,210 @@
 # Change Log
 
-## Version 1.6.6 - 2015-04-05
+## Unreleased
+### Added
+
+*   Support Mongoid 5. PR [#636](https://github.com/activerecord-hackery/ransack/pull/636), commit
+    [9e5faf4](https://github.com/activerecord-hackery/ransack/commit/9e5faf4).
+
+    *Josef Šimánek*
+
+*   Added optional block argument for the `sort_link` method. PR
+    [#604](https://github.com/activerecord-hackery/ransack/pull/604), commit
+    [997b856](https://github.com/activerecord-hackery/ransack/commit/997b856).
+
+    *Andrea Dal Ponte*
+
+*   Added `ransack_alias` to allow users to customize the names for long
+    ransack field names. PR
+    [#623](https://github.com/activerecord-hackery/ransack/pull/623), commit
+    [e712ff1](https://github.com/activerecord-hackery/ransack/commit/e712ff1).
+
+    *Ray Zane*
+
+*   Added support for searching on attributes that have been added to
+    Active Record models with `alias_attribute` (Rails >= 4 only). PR
+    [#592](https://github.com/activerecord-hackery/ransack/pull/592), commit
+    [549342a](https://github.com/activerecord-hackery/ransack/commit/549342a).
+
+    *Marten Schilstra*
+
+*   Add ability to globally hide sort link order indicator arrows with
+    `Ransack.configure#hide_sort_order_indicators = true`. PR
+    [#577](https://github.com/activerecord-hackery/ransack/pull/577), commit
+    [95d4591](https://github.com/activerecord-hackery/ransack/commit/95d4591).
+
+    *Josh Hunter*, *Jon Atack*
+
+*   Add failing tests to facilitate work on issue
+    [#566](https://github.com/activerecord-hackery/ransack/issues/566)
+    of passing boolean values to search scopes. PR
+    [#575](https://github.com/activerecord-hackery/ransack/pull/575).
+
+    *Marcel Eeken*
+
+*   Add Brazilian Portuguese i18n locale file (`pt-BR.yml`). PR
+    [#581](https://github.com/activerecord-hackery/ransack/pull/581).
+
+    *Diego Henrique Domingues*
+
+*   Add Indonesian (Bahasa) i18n locale file (`id.yml`). PR
+    [#612](https://github.com/activerecord-hackery/ransack/pull/612).
+
+    *Adam Pahlevi Baihaqi*
+
+*   Add Japanese i18n locale file (`ja.yml`). PR
+    [#622](https://github.com/activerecord-hackery/ransack/pull/622).
+
+    *Masanobu Mizutani*
+
+### Fixed
+
+*   Fix using aliased attributes in association searches, and add a failing
+    spec. PR [#602](https://github.com/activerecord-hackery/ransack/pull/602).
+
+    *Marten Schilstra*
+
+*   Replace Active Record `table_exists?` API that was deprecated
+    [here](https://github.com/rails/rails/commit/152b85f) in Rails 5. Commit
+    [c9d2297](https://github.com/activerecord-hackery/ransack/commit/c9d2297).
+
+    *Jon Atack*
+
+*   Adapt to changes in Rails 5 where AC::Parameters composes a HWIA instead of
+    inheriting from Hash starting from Rails commit rails/rails@14a3bd5. Commit
+    [ceafc05](https://github.com/activerecord-hackery/ransack/commit/ceafc05).
+
+    *Jon Atack*
+
+*   Fix test `#sort_link with hide order indicator set to true` to fail properly
+    ([4f65b09](https://github.com/activerecord-hackery/ransack/commit/4f65b09)).
+    This spec, added in
+    [#473](https://github.com/activerecord-hackery/ransack/pull/473), tested
+    the presence of the attribute name instead of the absence of the order
+    indicators and did not fail when it should.
+
+    *Josh Hunter*, *Jon Atack*
+
+*   Revert
+    [f858dd6](https://github.com/activerecord-hackery/ransack/commit/f858dd6).
+    Fixes [#553](https://github.com/activerecord-hackery/ransack/issues/553)
+    performance regression with the SQL Server adapter.
+
+    *sschwing3*
+
+*   Fix invalid Chinese I18n locale file name by replacing "zh" with "zh-CN".
+    PR [#590](https://github.com/activerecord-hackery/ransack/pull/590).
+
+    *Ethan Yang*
+
 ### Changed
 
-*   Upgrade Polyamorous dependency to version 1.2.0, which uses Module#prepend instead of monkey-patching for hooking into Active Record (with Ruby 2.x).
+*   Memory/speed perf improvement: Freeze strings in array global constants and
+    move from using global string constants to frozen strings
+    ([381a83c](https://github.com/activerecord-hackery/ransack/commit/381a83c)
+    and
+    [ce114ec](https://github.com/activerecord-hackery/ransack/commit/ce114ec)).
+
+    *Jon Atack*
+
+*   Escape underscore `_` wildcard characters with PostgreSQL and MySQL. PR
+    [#584](https://github.com/activerecord-hackery/ransack/issues/584).
+
+    *Igor Dobryn*
+
+
+## Version 1.7.0 - 2015-08-20
+### Added
+
+*   Add Mongoid support for referenced/embedded relations. PR
+    [#498](https://github.com/activerecord-hackery/ransack/pull/498).
+    TODO: Missing spec coverage! Add documentation!
+
+    *Penn Su*
+
+*   Add German i18n locale file (`de.yml`). PR
+    [#537](https://github.com/activerecord-hackery/ransack/pull/537).
+
+    *Philipp Weissensteiner*
+
+### Fixed
+
+*   Fix
+    [#499](https://github.com/activerecord-hackery/ransack/issues/499) and
+    [#549](https://github.com/activerecord-hackery/ransack/issues/549).
+    Ransack now loads only Active Record if both Active Record and Mongoid are
+    running to avoid the two adapters overriding each other. This clarifies
+    that Ransack currently knows how to work with only one database adapter
+    active at a time. PR
+    [#541](https://github.com/activerecord-hackery/ransack/pull/541).
+
+    *ASnow (Большов Андрей)*
+
+*   Fix [#299](https://github.com/activerecord-hackery/ransack/issues/299)
+    `attribute_method?` parsing for attribute names containing `_and_`
+    and `_or_`. Attributes named like `foo_and_bar` or `foo_or_bar` are
+    recognized now instead of running failing checks for `foo` and `bar`.
+    PR [#562](https://github.com/activerecord-hackery/ransack/pull/562).
+
+    *Ryohei Hoshi*
+
+*   Fix a time-dependent test failure. When the database has
+    `default_timezone = :local` (system time) and the `Time.zone` is set to
+    elsewhere, then `Date.current` does not match what the query produces for
+    the stored timestamps. Resolved by setting everything to UTC. PR
+    [#561](https://github.com/activerecord-hackery/ransack/pull/561).
+
+    *Andrew Vit*
+
+*   Avoid overwriting association conditions with default scope in Rails 3.
+    When a model with default scope was associated with conditions
+    (`has_many :x, conditions: ...`), the default scope would overwrite the
+    association conditions. This patch ensures that both sources of conditions
+    are applied. Avoid selecting records from joins that would normally be
+    filtered out if they were selected from the base table. Only applies to
+    Rails 3, as this issue was fixed since Rails 4. PR
+    [#560](https://github.com/activerecord-hackery/ransack/pull/560).
+
+    *Andrew Vit*
+
+*   Fix RSpec `its` method deprecation warning: "Use of rspec-core's its
+    method is deprecated. Use the rspec-its gem instead"
+    ([c09aa17](https://github.com/activerecord-hackery/ransack/commit/c09aa17)).
+
+*   Fix deprecated RSpec syntax in `grouping_spec.rb`
+    ([ba92a0b](https://github.com/activerecord-hackery/ransack/commit/ba92a0b)).
+
+    *Jon Atack*
+
+### Changed
+
+*   Upgrade gemspec dependencies: MySQL2 from '0.3.14' to '0.3.18', and RSpec
+    from '~> 2.14.0' to '~> 2' which loads 2.99
+    ([000cd22](https://github.com/activerecord-hackery/ransack/commit/000cd22)).
+
+*   Upgrade spec suite to RSpec 3 `expect` syntax backward compatible with
+    RSpec 2.9
+    ([87cd36d](https://github.com/activerecord-hackery/ransack/commit/87cd36d)
+    and
+    [d296caa](https://github.com/activerecord-hackery/ransack/commit/d296caa)).
+
+*   Various FormHelper refactorings
+    ([17dd97a](https://github.com/activerecord-hackery/ransack/commit/17dd97a)
+    and
+    [29a73b9](https://github.com/activerecord-hackery/ransack/commit/29a73b9)).
+
+*   Various documentation updates.
+
+    *Jon Atack*
+
+
+## Version 1.6.6 - 2015-04-05
+### Added
+
+*   Add the Ruby version to the the header message that shows the database,
+    Active Record and Arel versions when running tests.
+
+*   Add Code Climate analysis.
 
     *Jon Atack*
 
@@ -28,12 +229,10 @@
 
     *Jon Atack*
 
-### Added
+### Changed
 
-*   Add the Ruby version to the the header message that shows the database,
-    Active Record and Arel versions when running tests.
-
-*   Add Code Climate analysis.
+*   Upgrade Polyamorous dependency to version 1.2.0, which uses `Module#prepend`
+    instead of `alias_method` for hooking into Active Record (with Ruby 2.x).
 
     *Jon Atack*
 
@@ -150,7 +349,7 @@
 
     *Josh Kovach*
 
-*   Add an sort_link option to not display sort direction arrows
+*   Add an sort_link option to not display sort order indicator arrows
     ([PR #473](https://github.com/activerecord-hackery/ransack/pull/473)).
 
     *Fred Bergman*
@@ -338,7 +537,7 @@
 
     *Pedro Chambino*
 
-*   Add `ro.yml` Romanian translation file.
+*   Add Romanian i18n locale file (`ro.yml`).
 
     *Andreas Philippi*
 

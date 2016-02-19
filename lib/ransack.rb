@@ -2,15 +2,19 @@ require 'active_support/core_ext'
 
 require 'ransack/configuration'
 
-if defined?(::Mongoid)
-  require 'ransack/adapters/mongoid/ransack/constants'
-else
-  require 'ransack/adapters/active_record/ransack/constants'
-end
+require 'ransack/adapters'
+Ransack::Adapters.require_constants
 
 module Ransack
   extend Configuration
   class UntraversableAssociationError < StandardError; end;
+
+  SUPPORTS_ATTRIBUTE_ALIAS =
+  begin
+    ActiveRecord::Base.respond_to?(:attribute_aliases)
+  rescue NameError
+    false
+  end
 end
 
 Ransack.configure do |config|
@@ -29,14 +33,6 @@ require 'action_controller'
 
 require 'ransack/translate'
 
-if defined?(::ActiveRecord::Base)
-  require 'ransack/adapters/active_record/ransack/translate'
-  require 'ransack/adapters/active_record'
-end
-
-if defined?(::Mongoid)
-  require 'ransack/adapters/mongoid/ransack/translate'
-  require 'ransack/adapters/mongoid'
-end
+Ransack::Adapters.require_adapter
 
 ActionController::Base.helper Ransack::Helpers::FormHelper

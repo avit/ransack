@@ -1,15 +1,14 @@
 require 'bundler'
 require 'rspec/core/rake_task'
-require 'active_record'
 
 Bundler::GemHelper.install_tasks
 
 RSpec::Core::RakeTask.new(:spec) do |rspec|
   ENV['SPEC'] = 'spec/ransack/**/*_spec.rb'
-  if ActiveRecord::VERSION::MAJOR >= 4 || RUBY_VERSION < '2.2'
-    # Raises `invalid option: --backtrace` with Rails 3.x on Ruby 2.2
-    rspec.rspec_opts = ['--backtrace']
-  end
+  # With Rails 3, using `--backtrace` raises 'invalid option' when testing.
+  # With Rails 4 and 5 it can be uncommented to see the backtrace:
+  #
+  # rspec.rspec_opts = ['--backtrace']
 end
 
 RSpec::Core::RakeTask.new(:mongoid) do |rspec|
@@ -18,7 +17,7 @@ RSpec::Core::RakeTask.new(:mongoid) do |rspec|
 end
 
 task :default do
-  if ENV['DB'] =~ /mongodb/
+  if ENV['DB'] =~ /mongoid/
     Rake::Task["mongoid"].invoke
   else
     Rake::Task["spec"].invoke

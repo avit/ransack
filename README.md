@@ -29,18 +29,19 @@ instead.
 If you're viewing this at
 [github.com/activerecord-hackery/ransack](https://github.com/activerecord-hackery/ransack),
 you're reading the documentation for the master branch with the latest features.
-[View documentation for the last release (1.6.6).]
-(https://github.com/activerecord-hackery/ransack/tree/v1.6.6)
+[View documentation for the last release (1.7.0).](https://github.com/activerecord-hackery/ransack/tree/v1.7.0)
 
 ## Getting started
 
-Ransack is compatible with Rails 3 and 4 (including 4.2.1) on Ruby 1.9 and
-later (Ruby 2.2 recommended). Ransack currently works with Rails master (5.0.0)
-too! If you are using Ruby 1.8, you can use an earlier version of Ransack up to
-1.3.0.
+Ransack is compatible with Rails 3, 4 and 5 on Ruby 1.9 and later.
+JRuby 9 ought to work as well (see
+[this](https://github.com/activerecord-hackery/polyamorous/issues/17)).
+If you are using Ruby 1.8 or an earlier JRuby and run into compatibility
+issues, you can use an earlier version of Ransack, say, up to 1.3.0.
 
-Ransack works out-of-the-box with Active Record and also features experimental
-support for Mongoid 4.0 (without associations, further details below).
+Ransack works out-of-the-box with Active Record and also features limited
+support for Mongoid 4 and 5 (without associations, further details
+[below](https://github.com/activerecord-hackery/ransack#mongoid)).
 
 In your Gemfile, for the last officially released gem:
 
@@ -53,6 +54,19 @@ Or, if you would like to use the latest updates, use the `master` branch:
 ```ruby
 gem 'ransack', github: 'activerecord-hackery/ransack'
 ```
+
+September 2015 update: If you are using Rails 5 (master) and need pagination
+that works with Ransack, there is an
+[updated version of the `will_paginate` gem here](https://github.com/jonatack/will_paginate).
+It is also optimized for Ruby 2.2+. To use it, in your Gemfile:
+`gem 'will_paginate', github: 'jonatack/will_paginate'`.
+
+## Issues tracker
+
+* Before filing an issue, please read the [Contributing Guide](CONTRIBUTING.md).
+* File an issue if a bug is caused by Ransack, is new (has not already been reported), and _can be reproduced from the information you provide_.
+* Contributions are welcome, but please do not add "+1" comments to issues or pull requests :smiley:
+* Please do not use the issue tracker for personal support requests. Stack Overflow is a better place for that where a wider community can help you!
 
 ## Usage
 
@@ -79,22 +93,6 @@ If you're coming from MetaSearch, things to note:
   ActiveRecord::Relation in the case of the ActiveRecord adapter) via a call to
   `Ransack#result`.
 
-  4. If passed `distinct: true`, `result` will generate a `SELECT DISTINCT` to
-  avoid returning duplicate rows, even if conditions on a join would otherwise
-  result in some. It generates the same SQL as calling `uniq` on the relation.
-
-  Please note that for many databases, a sort on an associated table's columns
-  may result in invalid SQL with `distinct: true` -- in those cases, you're on
-  your own, and will need to modify the result as needed to allow these queries
-  to work.
-
-  If `distinct: true` or `uniq` is causing invalid SQL, another way to remove
-  duplicates is to call `to_a.uniq` on the collection at the end (see the next
-  section below) -- with the caveat that the de-duping is taking place in Ruby
-  instead of in SQL, which is potentially slower and uses more memory, and that
-  it may display awkwardly with pagination if the number of results is greater
-  than the page size.
-
 ####In your controller
 
 ```ruby
@@ -103,7 +101,7 @@ def index
   @people = @q.result(distinct: true)
 end
 ```
-or without `distinct:true`, for sorting on an associated table's columns (in
+or without `distinct: true`, for sorting on an associated table's columns (in
 this example, with preloading each Person's Articles and pagination):
 
 ```ruby
@@ -170,6 +168,14 @@ column title or a default sort order:
 <%= sort_link(@q, :name, 'Last Name', default_order: :desc) %>
 ```
 
+You can use a block if the link markup is hard to fit into the label parameter:
+
+```erb
+<%= sort_link(@q, :name) do %>
+  <strong>Player Name</strong>
+<% end %>
+```
+
 With a polymorphic association, you may need to specify the name of the link
 explicitly to avoid an `uninitialized constant Model::Xxxable` error (see issue
 [#421](https://github.com/activerecord-hackery/ransack/issues/421)):
@@ -204,6 +210,15 @@ The sort link may be displayed without the order indicator arrow by passing
 
 ```erb
 <%= sort_link(@q, :name, hide_indicator: true) %>
+```
+
+Alternatively, all sort links may be displayed without the order indicator arrow
+by adding this to an initializer file like `config/initializers/ransack.rb`:
+
+```ruby
+Ransack.configure do |c|
+  c.hide_sort_order_indicators = true
+end
 ```
 
 ### Advanced Mode
@@ -257,7 +272,7 @@ Article.search(params[:q])
 ```
 
 Users have reported issues of `#search` name conflicts with other gems, so
-the `#search` method alias might be deprecated in the next major version of
+the `#search` method alias will be deprecated in the next major version of
 Ransack (2.0). It's advisable to use the default `#ransack` instead.
 
 For now, if Ransack's `#search` method conflicts with the name of another
@@ -328,15 +343,40 @@ end
 ...
 <%= content_tag :table do %>
   <%= content_tag :th, sort_link(@q, :last_name) %>
-  <%= content_tag :th, sort_link(@q, 'departments.title') %>
-  <%= content_tag :th, sort_link(@q, 'employees.last_name') %>
+  <%= content_tag :th, sort_link(@q, :department_title) %>
+  <%= content_tag :th, sort_link(@q, :employees_last_name) %>
 <% end %>
 ```
 
-Please note that in a sort link, the association is expressed as an SQL string
-(`'employees.last_name'`) with a pluralized table name, instead of the symbol
-`:employee_last_name` syntax with a class#underscore table name used for
-Ransack objects elsewhere.
+If you have trouble sorting on associations, try using an SQL string with the
+pluralized table (`'departments.title'`,`'employees.last_name'`) instead of the
+symbolized association (`:department_title)`, `:employees_last_name`).
+
+### Ransack Aliases
+
+You can customize the attribute names for your Ransack searches by using a
+`ransack_alias`. This is particularly useful for long attribute names that are
+necessary when querying associations or multiple columns.
+
+```ruby
+class Post < ActiveRecord::Base
+  belongs_to :author
+
+  # Abbreviate :author_first_name_or_author_last_name to :author
+  ransack_alias :author, :author_first_name_or_author_last_name
+end
+```
+
+Now, rather than using `:author_first_name_or_author_last_name_cont` in your
+form, you can simply use `:author_cont`. This serves to produce more expressive
+query parameters in your URLs.
+
+```erb
+<%= search_form_for @q do |f| %>
+  <%= f.label :author_cont %>
+  <%= f.search_field :author_cont %>
+<% end %>
+```
 
 ### Using Ransackers to add custom search functions via Arel
 
@@ -346,6 +386,58 @@ _ransackers_, for creating additional search functions via Arel. More
 information about `ransacker` methods can be found [here in the wiki]
 (https://github.com/activerecord-hackery/ransack/wiki/Using-Ransackers).
 Feel free to contribute working `ransacker` code examples to the wiki!
+
+### Problem with DISTINCT selects
+
+If passed `distinct: true`, `result` will generate a `SELECT DISTINCT` to
+avoid returning duplicate rows, even if conditions on a join would otherwise
+result in some. It generates the same SQL as calling `uniq` on the relation.
+
+Please note that for many databases, a sort on an associated table's columns
+may result in invalid SQL with `distinct: true` -- in those cases, you will
+will need to modify the result as needed to allow these queries to work.
+
+For example, you could call joins and includes on the result which has the
+effect of adding those tables columns to the select statement, overcoming
+the issue, like so:
+
+```ruby
+def index
+  @q = Person.ransack(params[:q])
+  @people = @q.result(distinct: true)
+              .includes(:articles)
+              .joins(:articles)
+              .page(params[:page])
+end
+```
+
+If the above doesn't help, you can also use ActiveRecord's `select` query
+to explicitly add the columns you need, which brute force's adding the
+columns you need that your SQL engine is complaining about, you need to
+make sure you give all of the columns you care about, for example:
+
+```ruby
+def index
+  @q = Person.ransack(params[:q])
+  @people = @q.result(distinct: true)
+              .select('people.*, articles.name, articles.description')
+              .page(params[:page])
+end
+```
+
+A final way of last resort is to call `to_a.uniq` on the collection at the end
+with the caveat that the de-duping is taking place in Ruby instead of in SQL,
+which is potentially slower and uses more memory, and that it may display
+awkwardly with pagination if the number of results is greater than the page size.
+
+For example:
+
+```ruby
+def index
+  @q = Person.ransack(params[:q])
+  @people = @q.result.includes(:articles).page(params[:page]).to_a.uniq
+end
+```
 
 ### Authorization (whitelisting/blacklisting)
 
@@ -476,7 +568,7 @@ scope accepts a value:
 
 ```ruby
 class Employee < ActiveRecord::Base
-  scope :active, ->(boolean = true) { where(active: boolean) }
+  scope :activated, ->(boolean = true) { where(active: boolean) }
   scope :salary_gt, ->(amount) { where('salary > ?', amount) }
 
   # Scopes are just syntactical sugar for class methods, which may also be used:
@@ -490,24 +582,23 @@ class Employee < ActiveRecord::Base
   def self.ransackable_scopes(auth_object = nil)
     if auth_object.try(:admin?)
       # allow admin users access to all three methods
-      %i(active hired_since salary_gt)
+      %i(activated hired_since salary_gt)
     else
-      # allow other users to search on active and hired_since only
-      %i(active hired_since)
+      # allow other users to search on `activated` and `hired_since` only
+      %i(activated hired_since)
     end
   end
 end
 
-Employee.ransack({ active: true, hired_since: '2013-01-01' })
+Employee.ransack({ activated: true, hired_since: '2013-01-01' })
 
 Employee.ransack({ salary_gt: 100_000 }, { auth_object: current_user })
 ```
 
-If the `true` value is being passed via url params or by some other mechanism
-that will convert it to a string (i.e. `active: 'true'` instead of
-`active: true`), the true value will *not* be passed to the scope. If you want
-to pass a `'true'` string to the scope, you should wrap it in an array (i.e.
-`active: ['true']`).
+In Rails 3 and 4, if the `true` value is being passed via url params or some
+other mechanism that will convert it to a string, the true value may not be
+passed to the ransackable scope unless you wrap it in an array
+(i.e. `activated: ['true']`). This is currently resolved in Rails 5 :smiley:
 
 Scopes are a recent addition to Ransack and currently have a few caveats:
 First, a scope involving child associations needs to be defined in the parent
@@ -655,6 +746,17 @@ called on a `ransack` search returns a `Mongoid::Criteria` object:
   @people = @q.result.active.order_by(updated_at: -1).limit(10)
 ```
 
+_NOTE: Ransack currently works with either Active Record or Mongoid, but not
+both in the same application. If both are present, Ransack will default to
+Active Record only. Here is the code containing the logic:_
+
+```ruby
+  @current_adapters ||= {
+    :active_record => defined?(::ActiveRecord::Base),
+    :mongoid => defined?(::Mongoid) && !defined?(::ActiveRecord::Base)
+  }
+```
+
 ## Semantic Versioning
 
 Ransack attempts to follow semantic versioning in the format of `x.y.z`, where:
@@ -681,7 +783,3 @@ directly related to bug reports, pull requests, or documentation improvements.
 * Spread the word on Twitter, Facebook, and elsewhere if Ransack's been useful
 to you. The more people who are using the project, the quicker we can find and
 fix bugs!
-
-## Copyright
-
-Copyright &copy; 2011-2015 [Ernie Miller](http://twitter.com/erniemiller)

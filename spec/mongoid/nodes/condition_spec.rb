@@ -4,6 +4,21 @@ module Ransack
   module Nodes
     describe Condition do
 
+      context 'with an alias' do
+        subject {
+          Condition.extract(
+            Context.for(Person), 'term_start', Person.first(2).map(&:name)
+          )
+        }
+
+        specify { expect(subject.combinator).to eq 'or' }
+        specify { expect(subject.predicate.name).to eq 'start' }
+
+        it 'converts the alias to the correct attributes' do
+          expect(subject.attributes.map(&:name)).to eq(['name', 'email'])
+        end
+      end
+
       context 'with multiple values and an _any predicate' do
         subject { Condition.extract(Context.for(Person), 'name_eq_any', Person.first(2).map(&:name)) }
 
@@ -26,7 +41,7 @@ module Ransack
             Ransack.configure { |config| config.ignore_unknown_conditions = true }
           end
 
-          specify { subject.should be_nil }
+          specify { expect(subject).to be_nil }
         end
       end
     end

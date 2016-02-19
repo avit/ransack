@@ -19,13 +19,8 @@ module Ransack
       before do
         @controller = ActionView::TestCase::TestController.new
         @controller.instance_variable_set(:@_routes, router)
-        @controller.class_eval do
-          include router.url_helpers
-        end
-
-        @controller.view_context_class.class_eval do
-          include router.url_helpers
-        end
+        @controller.class_eval { include router.url_helpers }
+        @controller.view_context_class.class_eval { include router.url_helpers }
       end
 
       describe '#sort_link with default search_key' do
@@ -344,6 +339,7 @@ module Ransack
           )
         }
         it { should match /Full Name/ }
+        it { should_not match /&#9660;|&#9650;/ }
       end
 
       describe '#sort_link with hide order indicator set to false' do
@@ -356,6 +352,45 @@ module Ransack
           )
         }
         it { should match /Full Name&nbsp;&#9660;/ }
+      end
+
+      describe '#sort_link with config set to globally hide order indicators' do
+        before do
+          Ransack.configure { |c| c.hide_sort_order_indicators = true }
+        end
+        subject { @controller.view_context
+          .sort_link(
+            [:main_app, Person.search(sorts: ['name desc'])],
+            :name,
+            controller: 'people'
+          )
+        }
+        it { should_not match /&#9660;|&#9650;/ }
+      end
+
+      describe '#sort_link with config set to globally show order indicators' do
+        before do
+          Ransack.configure { |c| c.hide_sort_order_indicators = false }
+        end
+        subject { @controller.view_context
+          .sort_link(
+            [:main_app, Person.search(sorts: ['name desc'])],
+            :name,
+            controller: 'people'
+          )
+        }
+        it { should match /Full Name&nbsp;&#9660;/ }
+      end
+
+      describe '#sort_link with a block' do
+        subject { @controller.view_context
+          .sort_link(
+            [:main_app, Person.search(sorts: ['name desc'])],
+            :name,
+            controller: 'people'
+          ) { 'Block label' }
+        }
+        it { should match /Block label&nbsp;&#9660;/ }
       end
 
       describe '#search_form_for with default format' do
@@ -398,7 +433,6 @@ module Ransack
         }
         it { should match /example_name_eq/ }
       end
-
     end
   end
 end

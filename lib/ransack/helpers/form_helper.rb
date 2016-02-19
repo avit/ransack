@@ -15,8 +15,7 @@ module Ransack
         elsif record.is_a?(Array) &&
         (search = record.detect { |o| o.is_a?(Ransack::Search) })
           options[:url] ||= polymorphic_path(
-            record.map { |o| o.is_a?(Ransack::Search) ? o.klass : o },
-            format: options.delete(:format)
+            options_for(record), format: options.delete(:format)
             )
         else
           raise ArgumentError,
@@ -24,13 +23,9 @@ module Ransack
         end
         options[:html] ||= {}
         html_options = {
-          :class => options[:class].present? ?
-            "#{options[:class]}" :
-            "#{search.klass.to_s.underscore}_search",
-          :id => options[:id].present? ?
-            "#{options[:id]}" :
-            "#{search.klass.to_s.underscore}_search",
-          :method => :get
+          class:  html_option_for(options[:class], search),
+          id:     html_option_for(options[:id], search),
+          method: :get
         }
         options[:as] ||= Ransack.options[:search_key]
         options[:html].reverse_merge!(html_options)
@@ -43,23 +38,41 @@ module Ransack
       #
       #   <%= sort_link(@q, :name, [:name, 'kind ASC'], 'Player Name') %>
       #
-      def sort_link(search_object, attribute, *args)
+      #   You can also use a block:
+      #
+      #   <%= sort_link(@q, :name, [:name, 'kind ASC']) do %>
+      #     <strong>Player Name</strong>
+      #   <% end %>
+      #
+      def sort_link(search_object, attribute, *args, &block)
         search, routing_proxy = extract_search_and_routing_proxy(search_object)
         unless Search === search
           raise TypeError, 'First argument must be a Ransack::Search!'
         end
-        s = SortLink.new(search, attribute, args, params)
+        args.unshift(capture(&block)) if block_given?
+        s = SortLink.new(search, attribute, args, params, &block)
         link_to(s.name, url(routing_proxy, s.url_options), s.html_options(args))
       end
 
       private
 
+        def options_for(record)
+          record.map { |r| parse_record(r) }
+        end
+
+        def parse_record(object)
+          return object.klass if object.is_a?(Ransack::Search)
+          object
+        end
+
+        def html_option_for(option, search)
+          return option.to_s if option.present?
+          "#{search.klass.to_s.underscore}_search"
+        end
+
         def extract_search_and_routing_proxy(search)
-          if search.is_a? Array
-            [search.second, search.first]
-          else
-            [search, nil]
-          end
+          return [search[1], search[0]] if search.is_a?(Array)
+          [search, nil]
         end
 
         def url(routing_proxy, options_for_url)
@@ -73,22 +86,21 @@ module Ransack
       class SortLink
         def initialize(search, attribute, args, params)
           @search         = search
-          @params         = params
+          @params         = parameters_hash(params)
           @field          = attribute.to_s
-          sort_fields     = extract_sort_fields_and_mutate_args!(args).compact
+          @sort_fields    = extract_sort_fields_and_mutate_args!(args).compact
           @current_dir    = existing_sort_direction
           @label_text     = extract_label_and_mutate_args!(args)
           @options        = extract_options_and_mutate_args!(args)
-          @hide_indicator = @options.delete :hide_indicator
+          @hide_indicator = @options.delete(:hide_indicator) ||
+                            Ransack.options[:hide_sort_order_indicators]
           @default_order  = @options.delete :default_order
-          @sort_params    = build_sort(sort_fields)
-          @sort_params    = @sort_params.first if @sort_params.size == 1
         end
 
         def name
           [ERB::Util.h(@label_text), order_indicator]
           .compact
-          .join(Constants::NON_BREAKING_SPACE)
+          .join('&nbsp;'.freeze)
           .html_safe
         end
 
@@ -100,49 +112,51 @@ module Ransack
 
         def html_options(args)
           html_options = extract_options_and_mutate_args!(args)
-          html_options.merge(class:
-            [[Constants::SORT_LINK, @current_dir], html_options[:class]]
-            .compact.join(Constants::SPACE)
-            )
+          html_options.merge(
+            class: [['sort_link'.freeze, @current_dir], html_options[:class]]
+                   .compact.join(' '.freeze)
+          )
         end
 
         private
 
+          def parameters_hash(params)
+            return params unless params.respond_to?(:to_unsafe_h)
+            params.to_unsafe_h
+          end
+
           def extract_sort_fields_and_mutate_args!(args)
-            if args.first.is_a? Array
-              args.shift
-            else
-              [@field]
-            end
+            return args.shift if args[0].is_a?(Array)
+            [@field]
           end
 
           def extract_label_and_mutate_args!(args)
-            if args.first.is_a? String
-              args.shift
-            else
-              Translate.attribute(@field, :context => @search.context)
-            end
+            return args.shift if args[0].is_a?(String)
+            Translate.attribute(@field, context: @search.context)
           end
 
           def extract_options_and_mutate_args!(args)
-            if args.first.is_a? Hash
-              args.shift.with_indifferent_access
-            else
-              {}
-            end
+            return args.shift.with_indifferent_access if args[0].is_a?(Hash)
+            {}
           end
 
           def search_and_sort_params
-            search_params.merge(:s => @sort_params)
+            search_params.merge(s: sort_params)
           end
 
           def search_params
             @params[@search.context.search_key].presence || {}
           end
 
-          def build_sort(fields)
+          def sort_params
+            sort_array = recursive_sort_params_build(@sort_fields)
+            return sort_array[0] if sort_array.length == 1
+            sort_array
+          end
+
+          def recursive_sort_params_build(fields)
             return [] if fields.empty?
-            [parse_sort(fields[0])] + build_sort(fields.drop(1))
+            [parse_sort(fields[0])] + recursive_sort_params_build(fields.drop 1)
           end
 
           def parse_sort(field)
@@ -154,52 +168,41 @@ module Ransack
           end
 
           def detect_previous_sort_direction_and_invert_it(attr_name)
-            sort_dir = existing_sort_direction(attr_name)
-            if sort_dir
+            if sort_dir = existing_sort_direction(attr_name)
               direction_text(sort_dir)
             else
-              default_sort_order(attr_name) || Constants::ASC
+              default_sort_order(attr_name) || 'asc'.freeze
             end
           end
 
-          def existing_sort_direction(attr_name = @field)
-            if sort = @search.sorts.detect { |s| s && s.name == attr_name }
-              sort.dir
-            end
+          def existing_sort_direction(f = @field)
+            return unless sort = @search.sorts.detect { |s| s && s.name == f }
+            sort.dir
           end
 
           def default_sort_order(attr_name)
-            Hash === @default_order ? @default_order[attr_name] : @default_order
+            return @default_order[attr_name] if Hash === @default_order
+            @default_order
           end
 
           def order_indicator
-            if @hide_indicator || no_sort_direction_specified?
-              nil
-            else
-              direction_arrow
-            end
+            return if @hide_indicator || no_sort_direction_specified?
+            direction_arrow
           end
 
           def no_sort_direction_specified?(dir = @current_dir)
-            !Constants::ASC_DESC.include?(dir)
+            !['asc'.freeze, 'desc'.freeze].freeze.include?(dir)
           end
 
           def direction_arrow
-            if @current_dir == Constants::DESC
-              Constants::DESC_ARROW
-            else
-              Constants::ASC_ARROW
-            end
+            return Constants::DESC_ARROW if @current_dir == 'desc'.freeze
+            Constants::ASC_ARROW
           end
 
           def direction_text(dir)
-            if dir == Constants::DESC
-              Constants::ASC
-            else
-              Constants::DESC
-            end
+            return 'asc'.freeze if dir == 'desc'.freeze
+            'desc'.freeze
           end
-
       end
     end
   end

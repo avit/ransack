@@ -22,13 +22,13 @@ module Ransack
 
         def type_for(attr)
           return nil unless attr && attr.valid?
-          name        = attr.arel_attribute.name.to_s
-          table       = attr.arel_attribute.relation.table_name
-          connection  = attr.klass.connection
-          unless connection.table_exists?(table)
-            raise "No table named #{table} exists"
+          name         = attr.arel_attribute.name.to_s
+          table        = attr.arel_attribute.relation.table_name
+          schema_cache = @engine.connection.schema_cache
+          unless schema_cache.send(database_table_exists?, table)
+            raise "No table named #{table} exists."
           end
-          connection.schema_cache.columns_hash(table)[name].type
+          schema_cache.columns_hash(table)[name].type
         end
 
         def evaluate(search, opts = {})
@@ -86,7 +86,7 @@ module Ransack
             "ActiveRecord 4.1 and later does not use join_associations. Use join_sources."
           end
 
-          # All dependent Arel::Join nodes used in the search query
+          # All dependent Arel::Join nodes used in the search query.
           #
           # This could otherwise be done as `@object.arel.join_sources`, except
           # that ActiveRecord's build_joins sets up its own JoinDependency.
@@ -94,13 +94,18 @@ module Ransack
           # JoinDependency to track table aliases.
           #
           def join_sources
-            base =
-              if ::ActiveRecord::VERSION::MAJOR >= 5
-                Arel::SelectManager.new(@object.table)
-              else
-                Arel::SelectManager.new(@object.engine, @object.table)
-              end
-            joins = @join_dependency.join_constraints(@object.joins_values)
+            base, joins =
+            if ::ActiveRecord::VERSION::MAJOR >= 5
+              [
+                Arel::SelectManager.new(@object.table),
+                @join_dependency.join_constraints(@object.joins_values, @join_type)
+              ]
+            else
+              [
+                Arel::SelectManager.new(@object.engine, @object.table),
+                @join_dependency.join_constraints(@object.joins_values)
+              ]
+            end
             joins.each do |aliased_join|
               base.from(aliased_join)
             end
@@ -109,7 +114,7 @@ module Ransack
 
         else
 
-          # All dependent JoinAssociation items used in the search query
+          # All dependent JoinAssociation items used in the search query.
           #
           # Deprecated: this goes away in ActiveRecord 4.1. Use join_sources.
           #
@@ -133,6 +138,14 @@ module Ransack
         end
 
         private
+
+        def database_table_exists?
+          if ::ActiveRecord::VERSION::MAJOR >= 5
+            :data_source_exists?
+          else
+            :table_exists?
+          end
+        end
 
         def get_parent_and_attribute_name(str, parent = @base)
           attr_name = nil
@@ -168,7 +181,7 @@ module Ransack
         end
 
         def join_dependency(relation)
-          if relation.respond_to?(:join_dependency) # Squeel will enable this
+          if relation.respond_to?(:join_dependency) # Polyamorous enables this
             relation.join_dependency
           else
             build_joins(relation)
@@ -282,7 +295,7 @@ module Ransack
                 :build,
                 Polyamorous::Join.new(name, @join_type, klass),
                 parent
-               )
+                )
               found_association = @join_dependency.join_associations.last
               # Leverage the stashed association functionality in AR
               @object = @object.joins(found_association)

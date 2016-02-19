@@ -33,6 +33,14 @@ module Ransack
         end
 
         module ClassMethods
+          def _ransack_aliases
+            @_ransack_aliases ||= {}
+          end
+
+          def _ransack_aliases=(value)
+            @_ransack_aliases = value
+          end
+
           def _ransackers
             @_ransackers ||= {}
           end
@@ -49,13 +57,18 @@ module Ransack
 
           alias_method :search, :ransack
 
+          def ransack_alias(new_name, old_name)
+            self._ransack_aliases.store(new_name.to_s, old_name.to_s)
+          end
+
           def ransacker(name, opts = {}, &block)
             self._ransackers = _ransackers.merge name.to_s => Ransacker
               .new(self, name, opts, &block)
           end
 
           def all_ransackable_attributes
-            ['id'] + column_names.select { |c| c != '_id' } + _ransackers.keys
+            ['id'] + column_names.select { |c| c != '_id' } + _ransackers.keys +
+              _ransack_aliases.keys
           end
 
           def ransackable_attributes(auth_object = nil)
@@ -73,7 +86,9 @@ module Ransack
           end
 
           def reflect_on_all_associations_all
-            reflect_on_all_associations(:belongs_to, :has_one, :has_many)
+            reflect_on_all_associations(
+              :belongs_to, :has_one, :has_many, :embeds_many, :embedded_in
+              )
           end
 
           # For overriding with a whitelist of symbols
@@ -84,6 +99,10 @@ module Ransack
           # imitating active record
 
           def joins_values *args
+            []
+          end
+
+          def custom_join_ast *args
             []
           end
 
@@ -112,10 +131,10 @@ module Ransack
           end
 
           def table
-            name = ::Ransack::Adapters::Mongoid::Attributes::Attribute.new(self.criteria, :name)
-            {
-              :name => name
-            }
+            name = ::Ransack::Adapters::Mongoid::Attributes::Attribute.new(
+              self.criteria, :name
+              )
+            { :name => name }
           end
 
         end

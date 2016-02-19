@@ -1,14 +1,6 @@
 require 'ransack/nodes'
 require 'ransack/context'
-
-if defined?(::ActiveRecord::Base)
-  require 'ransack/adapters/active_record/ransack/context'
-end
-
-if defined?(::Mongoid)
-  require 'ransack/adapters/mongoid/ransack/context'
-end
-
+Ransack::Adapters.require_search
 require 'ransack/naming'
 
 module Ransack
@@ -23,6 +15,7 @@ module Ransack
              :translate, :to => :base
 
     def initialize(object, params = {}, options = {})
+      params = params.to_unsafe_h if params.respond_to?(:to_unsafe_h)
       if params.is_a? Hash
         params = params.dup
         params.delete_if { |k, v| [*v].all?{ |i| i.blank? && i != false } }
@@ -45,7 +38,7 @@ module Ransack
 
     def build(params)
       collapse_multiparameter_attributes!(params).each do |key, value|
-        if Constants::S_SORTS.include?(key)
+        if ['s'.freeze, 'sorts'.freeze].freeze.include?(key)
           send("#{key}=", value)
         elsif base.attribute_method?(key)
           base.send("#{key}=", value)
@@ -100,7 +93,7 @@ module Ransack
 
     def method_missing(method_id, *args)
       method_name = method_id.to_s
-      getter_name = method_name.sub(/=$/, Constants::EMPTY)
+      getter_name = method_name.sub(/=$/, ''.freeze)
       if base.attribute_method?(getter_name)
         base.send(method_id, *args)
       elsif @context.ransackable_scope?(getter_name, @context.object)
@@ -121,8 +114,8 @@ module Ransack
         [:base, base.inspect]
       ]
       .compact
-      .map { |d| d.join(Constants::COLON_SPACE) }
-      .join(Constants::COMMA_SPACE)
+      .map { |d| d.join(': '.freeze) }
+      .join(', '.freeze)
 
       "Ransack::Search<#{details}>"
     end

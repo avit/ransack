@@ -3,7 +3,7 @@ module Ransack
     class Sort < Node
       include Bindable
 
-      attr_reader :name, :dir
+      attr_reader :name, :dir, :ransacker_args
       i18n_word :asc, :desc
 
       class << self
@@ -16,7 +16,7 @@ module Ransack
 
       def build(params)
         params.with_indifferent_access.each do |key, value|
-          if key.match(/^(name|dir)$/)
+          if key.match(/^(name|dir|ransacker_args)$/)
             self.send("#{key}=", value)
           end
         end
@@ -38,11 +38,15 @@ module Ransack
       def dir=(dir)
         dir = dir.downcase if dir
         @dir =
-          if Constants::ASC_DESC.include?(dir)
+          if ['asc'.freeze, 'desc'.freeze].freeze.include?(dir)
             dir
           else
-            Constants::ASC
+            'asc'.freeze
           end
+      end
+
+      def ransacker_args=(ransack_args)
+        @ransacker_args = ransack_args
       end
 
     end

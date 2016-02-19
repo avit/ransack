@@ -1,16 +1,20 @@
 # Contributing to Ransack
 
-Please take a moment to review this document in order to make the contribution
-process easy and effective for everyone involved!
+Please take a moment to review this document to make contributing easy and
+effective for everyone involved!
 
 Ransack is an open source project and we encourage contributions.
 
+Please do not use the issue tracker for personal support requests. Stack
+Overflow is a better place for that where a wider community can help you!
+
 ## Filing an issue
 
-A bug is a _demonstrable problem_ that is caused by the code in the repository.
-Good bug reports are extremely helpful! Please do not use the issue tracker for personal support requests.
+Good issue reports are extremely helpful!  Please only open an issue if a bug
+is caused by Ransack, is new (has not already been reported), and can be
+reproduced from the information you provide.
 
-Guidelines for bug reports:
+Steps:
 
 1. **Use the GitHub issue search** &mdash; check if the issue has already been
    reported.
@@ -18,18 +22,25 @@ Guidelines for bug reports:
 2. **Check if the issue has been fixed** &mdash; try to reproduce it using the
    `master` branch in the repository.
 
-3. **Isolate and report the problem** &mdash; ideally create a reduced test
-   case.
+3. **Isolate the real problem** &mdash; make sure the issue is really a bug in
+   Ransack and not in your code or another gem.
 
-When filing an issue, please provide these details:
+4. **Report the issue** by providing the link to a self-contained
+   gist like [this](https://gist.github.com/jonatack/63048bc5062a84ba9e09) or
+   [this](https://gist.github.com/jonatack/5df41a0edb53b7bad989). Please use
+   these code examples as a bug-report template for your Ransack issue!
 
-* A comprehensive list of steps to reproduce the issue, or - far better - **a failing spec**.
-* The version (and branch) of Ransack *and* the versions of Rails, Ruby, and your operating system.
+If you do not provide a self-contained gist and would like your issue to be reviewed, do provide at a minimum:
+
+* A comprehensive list of steps to reproduce the issue, or even better, a
+  passing/failing test spec.
+* Whether you are using Ransack through another gem like ActiveAdmin,
+  SimpleForm, etc.
+* The versions of Ruby, Rails, Ransack and the database.
 * Any relevant stack traces ("Full trace" preferred).
 
-Any issue that is open for 14 days without actionable information or activity
-will be marked as "stalled" and then closed. Stalled issues can be re-opened
-if the information requested is provided.
+Issues filed without the above information or that remain open without activity
+for 14 days will be closed. They can be re-opened if actionable information to reproduce the issue is provided.
 
 ## Pull requests
 
@@ -76,19 +87,23 @@ Here's a quick guide:
 8. Update the Change Log. If you are adding new functionality, document it in
    the README.
 
-9. Commit your changes (`git commit -am 'Add feature/fix bug/improve docs'`).
+9. Make sure git knows your name and email address in your `~/.gitconfig` file:
 
-10. If necessary, rebase your commits into logical chunks, without errors. To
+        $ git config --global user.name "Your Name"
+        $ git config --global user.email "contributor@example.com"
+
+10. Commit your changes (`git commit -am 'Add feature/fix bug/improve docs'`).
+   If your pull request only contains documentation changes, please remember
+   to add `[skip ci]` to the beginning of your commit message so the Travis
+   test suite doesn't :runner: needlessly.
+
+11. If necessary, rebase your commits into logical chunks, without errors. To
    interactively rebase and cherry-pick from, say, the last 10 commits:
    `git rebase -i HEAD~10`, then `git push -f`.
 
-11. Push the branch up to your fork on Github
-   (`git push origin my-new-feature`) and from Github submit a pull request to
+12. Push the branch up to your fork on GitHub
+   (`git push origin my-new-feature`) and from GitHub submit a pull request to
    Ransack's `master` branch.
-
-12. If your pull request only contains documentation changes, please remember
-   to add `[skip ci]` to the beginning of your commit message so the Travis
-   test suite doesn't :runner: needlessly.
 
 At this point you're waiting on us. We like to at least comment on, if not
 accept, pull requests within three business days (and, typically, one business
@@ -107,11 +122,11 @@ Syntax:
 * 80 characters per line.
 * No trailing whitespace. Blank lines should not have any space.
 * Prefer `&&`/`||` over `and`/`or`.
-* `MyClass.my_method(my_arg)` not `my_method( my_arg )` or my_method my_arg.
+* `MyClass.my_method(my_arg)` not `my_method( my_arg )` or `my_method my_arg`.
 * `a = b` and not `a=b`.
 * `a_method { |block| ... }` and not `a_method { | block | ... }` or
 `a_method{|block| ...}`.
 * Prefer simplicity, readability, and maintainability over terseness.
 * Follow the conventions you see used in the code already.
 
-And in case we didn't emphasize it enough: we love tests!
+And in case we didn't emphasize it enough: We love tests!
