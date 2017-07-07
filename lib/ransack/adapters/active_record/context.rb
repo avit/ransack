@@ -107,8 +107,8 @@ module Ransack
                 @join_dependency.join_constraints(@object.joins_values)
               ]
             end
-            joins.each do |aliased_join|
-              base.from(aliased_join)
+            joins.first.each do |aliased_join|
+              base.from(aliased_join.first)
             end
             base.join_sources
           end
