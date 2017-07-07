@@ -32,13 +32,13 @@ module Ransack
 
       def name=(name)
         @name = name
-        context.bind(self, name) unless name.blank?
+        context.bind(self, name)
       end
 
       def dir=(dir)
         dir = dir.downcase if dir
         @dir =
-          if ['asc'.freeze, 'desc'.freeze].freeze.include?(dir)
+          if dir == 'asc'.freeze || dir == 'desc'.freeze
             dir
           else
             'asc'.freeze

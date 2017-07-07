@@ -20,7 +20,9 @@ module Ransack
 
           context 'with scopes' do
             before do
-              Person.stub ransackable_scopes: [:active, :over_age, :of_age]
+              allow(Person)
+              .to receive(:ransackable_scopes)
+              .and_return([:active, :over_age, :of_age])
             end
 
             it 'applies true scopes' do
@@ -63,24 +65,30 @@ module Ransack
               expect(s.result.to_sql).to (include 'age > 18')
             end
 
-            # TODO: Implement a way to pass true/false values like 0 or 1 to
-            # scopes (e.g. with `in` / `not_in` predicates), without Ransack
-            # converting them to true/false boolean values instead.
-
-            # it 'passes true values to scopes', focus: true  do
-            #   s = Person.ransack('over_age' => 1)
-            #   expect(s.result.to_sql).to (include 'age > 1')
-            # end
-
-            # it 'passes false values to scopes', focus: true  do
-            #   s = Person.ransack('over_age' => 0)
-            #   expect(s.result.to_sql).to (include 'age > 0')
-            # end
-
             it 'chains scopes' do
               s = Person.ransack('over_age' => 18, 'active' => true)
               expect(s.result.to_sql).to (include 'age > 18')
               expect(s.result.to_sql).to (include 'active = 1')
+            end
+
+            context "with sanitize_custom_scope_booleans set to false" do
+              before(:all) do
+                Ransack.configure { |c| c.sanitize_custom_scope_booleans = false }
+              end
+
+              after(:all) do
+                Ransack.configure { |c| c.sanitize_custom_scope_booleans = true }
+              end
+
+              it 'passes true values to scopes' do
+                s = Person.ransack('over_age' => 1)
+                expect(s.result.to_sql).to (include 'age > 1')
+              end
+
+              it 'passes false values to scopes'  do
+                s = Person.ransack('over_age' => 0)
+                expect(s.result.to_sql).to (include 'age > 0')
+              end
             end
           end
 
@@ -91,6 +99,76 @@ module Ransack
           it 'does not modify the parameters' do
             params = { name_eq: '' }
             expect { Person.ransack(params) }.not_to change { params }
+          end
+        end
+
+        context 'negative conditions on HABTM associations' do
+          let(:medieval) { Tag.create!(name: 'Medieval') }
+          let(:fantasy)  { Tag.create!(name: 'Fantasy') }
+          let(:arthur)   { Article.create!(title: 'King Arthur') }
+          let(:marco)    { Article.create!(title: 'Marco Polo') }
+
+          before do
+            marco.tags << medieval
+            arthur.tags << medieval
+            arthur.tags << fantasy
+          end
+
+          it 'removes redundant joins from top query' do
+            s = Article.ransack(tags_name_not_eq: "Fantasy")
+            sql = s.result.to_sql
+
+            expect(sql).to_not include('LEFT OUTER JOIN')
+          end
+
+          it 'handles != for single values' do
+            s = Article.ransack(tags_name_not_eq: "Fantasy")
+            articles = s.result.to_a
+
+            expect(articles).to include marco
+            expect(articles).to_not include arthur
+          end
+
+          it 'handles NOT IN for multiple attributes' do
+            s = Article.ransack(tags_name_not_in: ["Fantasy", "Scifi"])
+            articles = s.result.to_a
+
+            expect(articles).to include marco
+            expect(articles).to_not include arthur
+          end
+        end
+
+        context 'negative conditions on self-referenced associations' do
+          let(:pop) { Person.create!(name: 'Grandpa') }
+          let(:dad) { Person.create!(name: 'Father') }
+          let(:mom) { Person.create!(name: 'Mother') }
+          let(:son) { Person.create!(name: 'Grandchild') }
+
+          before do
+            son.parent = dad
+            dad.parent = pop
+            dad.children << son
+            mom.children << son
+            pop.children << dad
+            son.save! && dad.save! && mom.save! && pop.save!
+          end
+
+          it 'handles multiple associations and aliases' do
+            s = Person.ransack(
+              c: {
+                '0' => { a: ['name'], p: 'not_eq', v: ['Father'] },
+                '1' => {
+                        a: ['children_name', 'parent_name'],
+                        p: 'not_eq', v: ['Father'], m: 'or'
+                      },
+                '2' => { a: ['children_salary'], p: 'eq', v: [nil] }
+              })
+            people = s.result
+
+            expect(people.to_a).to include son
+            expect(people.to_a).to include mom
+            expect(people.to_a).to_not include dad  # rule '0': 'name'
+            expect(people.to_a).to_not include pop  # rule '1': 'children_name'
           end
         end
 
@@ -117,6 +195,27 @@ module Ransack
 
             s = Person.ransack(daddy_eq: 'Drake')
             expect(s.result.to_a).to eq []
+          end
+
+          it 'makes aliases available to subclasses' do
+            yngwie = Musician.create!(name: 'Yngwie Malmsteen')
+
+            musicians = Musician.ransack(term_cont: 'ngw').result
+            expect(musicians).to eq([yngwie])
+          end
+
+          it 'handles naming collisions gracefully' do
+            frank = Person.create!(name: 'Frank Stallone')
+
+            people = Person.ransack(term_cont: 'allon').result
+            expect(people).to eq([frank])
+
+            Class.new(Article) do
+              ransack_alias :term, :title
+            end
+
+            people = Person.ransack(term_cont: 'allon').result
+            expect(people).to eq([frank])
           end
         end
 
@@ -242,14 +341,26 @@ module Ransack
 
           context 'searching on an `in` predicate with a ransacker' do
             it 'should function correctly when passing an array of ids' do
-              s = Person.ransack(array_users_in: true)
+              s = Person.ransack(array_people_ids_in: true)
               expect(s.result.count).to be > 0
+
+              s = Person.ransack(array_where_people_ids_in: [1, '2', 3])
+              expect(s.result.count).to be 3
+              expect(s.result.map(&:id)).to eq [3, 2, 1]
             end
 
             it 'should function correctly when passing an array of strings' do
-              Person.create!(name: Person.first.id.to_s)
-              s = Person.ransack(array_names_in: true)
+              a, b = Person.select(:id).order(:id).limit(2).map { |a| a.id.to_s }
+
+              Person.create!(name: a)
+              s = Person.ransack(array_people_names_in: true)
               expect(s.result.count).to be > 0
+              s = Person.ransack(array_where_people_names_in: a)
+              expect(s.result.count).to be 1
+
+              Person.create!(name: b)
+              s = Person.ransack(array_where_people_names_in: [a, b])
+              expect(s.result.count).to be 2
             end
 
             it 'should function correctly with an Arel SqlLiteral' do

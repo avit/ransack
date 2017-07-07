@@ -3,48 +3,51 @@ module Ransack
     class Condition
 
       def arel_predicate
-        arel_predicate_for(attributes_array)
+        attributes.map { |attribute|
+          association = attribute.parent
+          if negative? && attribute.associated_collection?
+            query = context.build_correlated_subquery(association)
+            context.remove_association(association)
+            if self.predicate_name == 'not_null' && self.value
+              query.where(format_predicate(attribute))
+              Arel::Nodes::In.new(context.primary_key, Arel.sql(query.to_sql))
+            else
+              query.where(format_predicate(attribute).not)
+              Arel::Nodes::NotIn.new(context.primary_key, Arel.sql(query.to_sql))
+            end
+          else
+            format_predicate(attribute)
+          end
+        }.reduce(combinator_method)
       end
 
       private
 
-        def attributes_array
-          attributes.map do |a|
-            a.attr.send(
-              arel_predicate_for_attribute(a), formatted_values_for_attribute(a)
-            )
-          end
+        def combinator_method
+          combinator === Constants::OR ? :or : :and
         end
 
-        def arel_predicate_for(predicates)
-          if predicates.size > 1
-            combinator_for(predicates)
-          else
-            format_predicate(predicates.first)
-          end
-        end
+        def format_predicate(attribute)
+          arel_pred = arel_predicate_for_attribute(attribute)
+          arel_values = formatted_values_for_attribute(attribute)
+          predicate = attribute.attr.public_send(arel_pred, arel_values)
 
-        def combinator_for(predicates)
-          if combinator === Constants::AND
-            Arel::Nodes::Grouping.new(Arel::Nodes::And.new(predicates))
-          elsif combinator === Constants::OR
-            predicates.inject(&:or)
-          end
-        end
-
-        def format_predicate(predicate)
-          predicate.tap do
-            if casted_array_with_in_predicate?(predicate)
-              predicate.right[0] = format_values_for(predicate.right[0])
+          if in_predicate?(predicate)
+            predicate.right = predicate.right.map do |predicate|
+              casted_array?(predicate) ? format_values_for(predicate) : predicate
             end
           end
+
+          predicate
         end
 
-        def casted_array_with_in_predicate?(predicate)
+        def in_predicate?(predicate)
           return unless defined?(Arel::Nodes::Casted)
-          predicate.class == Arel::Nodes::In &&
-          predicate.right[0].respond_to?(:val) &&
-          predicate.right[0].val.is_a?(Array)
+          predicate.class == Arel::Nodes::In
+        end
+
+        def casted_array?(predicate)
+          predicate.respond_to?(:val) && predicate.val.is_a?(Array)
         end
 
         def format_values_for(predicate)

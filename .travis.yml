@@ -1,25 +1,22 @@
-services: mongodb
-
 language: ruby
 
 sudo: false
 
 rvm:
-  - 2.3.0
-  - 2.2.4
-  - 2.1
+  - 2.3.3
+  - 2.2.6
+  - 2.1.10
   - 2.0
-  - 1.9
 
 env:
-  - RAILS=4-2-stable DB=mongoid4
-  - RAILS=4-2-stable DB=mongoid5
+  - RAILS=5-0-stable DB=sqlite3
+  - RAILS=5-0-stable DB=mysql
+  - RAILS=5-0-stable DB=postgres
+
   - RAILS=4-2-stable DB=sqlite3
   - RAILS=4-2-stable DB=mysql
   - RAILS=4-2-stable DB=postgres
 
-  - RAILS=4-1-stable DB=mongoid4
-  - RAILS=4-1-stable DB=mongoid5
   - RAILS=4-1-stable DB=sqlite3
   - RAILS=4-1-stable DB=mysql
   - RAILS=4-1-stable DB=postgres
@@ -37,32 +34,44 @@ env:
   - RAILS=3-1-stable DB=postgres
 
 matrix:
+  exclude:
+    - rvm: 2.1.10
+      env: RAILS=5-0-stable DB=sqlite3
+    - rvm: 2.1.10
+      env: RAILS=5-0-stable DB=mysql
+    - rvm: 2.1.10
+      env: RAILS=5-0-stable DB=postgres
+
+    - rvm: 2.0
+      env: RAILS=5-0-stable DB=sqlite3
+    - rvm: 2.0
+      env: RAILS=5-0-stable DB=mysql
+    - rvm: 2.0
+      env: RAILS=5-0-stable DB=postgres
+
+    - rvm: 2.0
+      env: RAILS=4-2-stable DB=sqlite3
+    - rvm: 2.0
+      env: RAILS=4-2-stable DB=mysql
+    - rvm: 2.0
+      env: RAILS=4-2-stable DB=postgres
+
   include:
-    - rvm: 2.3.0
-      env: RAILS=master DB=mongoid5
-    - rvm: 2.3.0
-      env: RAILS=master DB=mongoid4
-    - rvm: 2.3.0
+    - rvm: 2.3.3
       env: RAILS=master DB=sqlite3
-    - rvm: 2.3.0
+    - rvm: 2.3.3
       env: RAILS=master DB=mysql
-    - rvm: 2.3.0
+    - rvm: 2.3.3
       env: RAILS=master DB=postgres
 
-    - rvm: 2.2.4
-      env: RAILS=master DB=mongoid5
-    - rvm: 2.2.4
-      env: RAILS=master DB=mongoid4
-    - rvm: 2.2.4
+    - rvm: 2.2.6
       env: RAILS=master DB=sqlite3
-    - rvm: 2.2.4
+    - rvm: 2.2.6
       env: RAILS=master DB=mysql
-    - rvm: 2.2.4
+    - rvm: 2.2.6
       env: RAILS=master DB=postgres
 
   allow_failures:
-    - env: RAILS=master DB=mongoid5
-    - env: RAILS=master DB=mongoid4
     - env: RAILS=master DB=sqlite3
     - env: RAILS=master DB=mysql
     - env: RAILS=master DB=postgres

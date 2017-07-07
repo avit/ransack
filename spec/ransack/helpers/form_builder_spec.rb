@@ -7,7 +7,6 @@ module Ransack
       router = ActionDispatch::Routing::RouteSet.new
       router.draw do
         resources :people, :comments, :notes
-        get ':controller(/:action(/:id(.:format)))'
       end
 
       include router.url_helpers

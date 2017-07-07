@@ -1,6 +1,101 @@
 # Change Log
 
 ## Unreleased
+
+### Added
+
+*   Add a config option to customize the up and down arrows used for direction
+    indicators in Ransack sort links.
+    PR [#726](https://github.com/activerecord-hackery/ransack/pull/726).
+
+    *Garett Arrowood*
+
+*   Add ability to turn off sanitization of custom scope arguments.
+    PR [#742](https://github.com/activerecord-hackery/ransack/pull/742).
+
+    *Garett Arrowood*
+
+### Fixed
+
+*   Use class attributes properly so that inheritance is respected.
+    PR [#717](https://github.com/activerecord-hackery/ransack/pull/717).
+    This fixes two bugs:
+
+    1. In the Mongoid adapter, subclasses were not properly inheriting their
+       parents' Ransack aliases because each class defined its own set of
+       aliases.
+
+    2. In the Active Record adapter, Ransack aliases were defined in such a way
+       that the parent's (and grandparent's, etc.) aliases were overwritten by
+       the child, meaning that all aliases were ultimately kept on
+       `ActiveRecord::Base`. This had the unfortunate effect of enforcing
+       uniqueness of Ransack alias names across all models rather than per
+       model. Depending on the load order of models, earlier definitions of an
+       alias in other models were clobbered.
+
+    *Steve Richert (laserlemon)*
+
+*   Use `ActiveSupport.on_load` hooks to include Ransack in Active Record,
+    avoiding autoloading the constant too soon. PR
+    [#719](https://github.com/activerecord-hackery/ransack/pull/719). Reference:
+    [This comment in rails#23589]
+    (https://github.com/rails/rails/issues/23589#issuecomment-229247727).
+
+    *Yuji Yaginuma (y-yagi)*
+
+## Version 1.8.2 - 2016-08-08
+### Fixed
+
+*   Fix empty attribute_fields regression in advanced search mode introduced by
+    [235eae3](https://github.com/activerecord-hackery/ransack/commit/235eae3).
+    Closes
+    [#701](https://github.com/activerecord-hackery/ransack/issues/701). Commit
+    [2839acf](https://github.com/activerecord-hackery/ransack/commit/2839acf).
+
+    *Jon Atack, Jay Dorsey, Stefan Haslinger, Igor Kasyanchuk*
+
+### Added
+
+*   Add `sort_url` view helper that returns only the url of a `sort_link`. PR
+    [#706](https://github.com/activerecord-hackery/ransack/pull/706).
+
+    *amatotsuji*
+
+## Version 1.8.1 - 2016-07-27
+### Fixed
+
+*   Fix `rake console` to run a command-line console with ransack + seed data.
+    Commits
+    [2cc781e](https://github.com/activerecord-hackery/ransack/commit/2cc781e),
+    [f2e85ad](https://github.com/activerecord-hackery/ransack/commit/f2e85ad),
+    [6a059ba](https://github.com/activerecord-hackery/ransack/commit/6a059ba).
+
+    *Jon Atack*
+
+*   Fix returned value of `Ransack::Nodes::Condition#format_predicate`. PR
+    [#692](https://github.com/activerecord-hackery/ransack/pull/692).
+
+    *Masahiro Saito*
+
+*   Better test coverage on passing arrays to ransackers. Commit
+    [98df2c5](https://github.com/activerecord-hackery/ransack/commit/98df2c5).
+
+    *Jon Atack*
+
+*   Fix missing Ransack::Constants::ASC constant. Commit
+    [aece23c](https://github.com/activerecord-hackery/ransack/commit/aece23c).
+
+    *Jon Atack*
+
+### Changed
+
+*   Replace arrow constants with frozen strings in public methods. Commits
+    [c0dff33](https://github.com/activerecord-hackery/ransack/commit/c0dff33),
+    [e489ca7](https://github.com/activerecord-hackery/ransack/commit/e489ca7).
+
+    *Jon Atack*
+
+## Version 1.8.0 - 2016-07-14
 ### Added
 
 *   Support Mongoid 5. PR [#636](https://github.com/activerecord-hackery/ransack/pull/636), commit
@@ -8,20 +103,18 @@
 
     *Josef Šimánek*
 
-*   Added optional block argument for the `sort_link` method. PR
-    [#604](https://github.com/activerecord-hackery/ransack/pull/604), commit
-    [997b856](https://github.com/activerecord-hackery/ransack/commit/997b856).
+*   Add optional block argument for the `sort_link` method. PR
+    [#604](https://github.com/activerecord-hackery/ransack/pull/604).
 
     *Andrea Dal Ponte*
 
-*   Added `ransack_alias` to allow users to customize the names for long
+*   Add `ransack_alias` to allow users to customize the names for long
     ransack field names. PR
-    [#623](https://github.com/activerecord-hackery/ransack/pull/623), commit
-    [e712ff1](https://github.com/activerecord-hackery/ransack/commit/e712ff1).
+    [#623](https://github.com/activerecord-hackery/ransack/pull/623).
 
     *Ray Zane*
 
-*   Added support for searching on attributes that have been added to
+*   Add support for searching on attributes that have been added to
     Active Record models with `alias_attribute` (Rails >= 4 only). PR
     [#592](https://github.com/activerecord-hackery/ransack/pull/592), commit
     [549342a](https://github.com/activerecord-hackery/ransack/commit/549342a).
@@ -35,12 +128,28 @@
 
     *Josh Hunter*, *Jon Atack*
 
+*   Add test for `ActionController:Parameter` object params in `sort_link` to
+    ensure Ransack is handling the Rails 5 changes correctly. Commit
+    [b1cfed8](https://github.com/activerecord-hackery/ransack/commit/b1cfed8).
+
+    *Ryan Wood*
+
 *   Add failing tests to facilitate work on issue
     [#566](https://github.com/activerecord-hackery/ransack/issues/566)
     of passing boolean values to search scopes. PR
     [#575](https://github.com/activerecord-hackery/ransack/pull/575).
 
     *Marcel Eeken*
+
+*   Add Taiwanese Hokkien/Mandarin i18n locale file (`zh-TW.yml`). PR
+    [#674](https://github.com/activerecord-hackery/ransack/pull/674).
+
+    *Sibevin Wang*
+
+*   Add Danish i18n locale file (`da.yml`). PR
+    [#663](https://github.com/activerecord-hackery/ransack/pull/663).
+
+    *Kasper Johansen*
 
 *   Add Brazilian Portuguese i18n locale file (`pt-BR.yml`). PR
     [#581](https://github.com/activerecord-hackery/ransack/pull/581).
@@ -58,6 +167,22 @@
     *Masanobu Mizutani*
 
 ### Fixed
+
+*   In `FormHelper::SortLink#parameters_hash`, convert `params#to_unsafe_h`
+    only if Rails 5, and add tests. Commit
+    [14e66ca](https://github.com/activerecord-hackery/ransack/commit/14e66ca).
+
+    *Jon Atack*
+
+*   Respect negative conditions for collection associations and fix Mongoid
+    compat. PR [#645](https://github.com/activerecord-hackery/ransack/pull/645).
+
+    *Andrew Vit*
+
+*   Ensure conditions differing only by ransacker_args aren't filtered out.
+    PR [#665](https://github.com/activerecord-hackery/ransack/pull/665).
+
+    *Andrew Porterfield*
 
 *   Fix using aliased attributes in association searches, and add a failing
     spec. PR [#602](https://github.com/activerecord-hackery/ransack/pull/602).
@@ -85,6 +210,11 @@
 
     *Josh Hunter*, *Jon Atack*
 
+*   Fix rspec-mocks `stub` deprecation warnings when running the tests. Commit
+    [600892e](https://github.com/activerecord-hackery/ransack/commit/600892e).
+
+    *Jon Atack*
+
 *   Revert
     [f858dd6](https://github.com/activerecord-hackery/ransack/commit/f858dd6).
     Fixes [#553](https://github.com/activerecord-hackery/ransack/issues/553)
@@ -100,7 +230,7 @@
 ### Changed
 
 *   Memory/speed perf improvement: Freeze strings in array global constants and
-    move from using global string constants to frozen strings
+    partially move from using global string constants to frozen strings
     ([381a83c](https://github.com/activerecord-hackery/ransack/commit/381a83c)
     and
     [ce114ec](https://github.com/activerecord-hackery/ransack/commit/ce114ec)).
@@ -112,6 +242,10 @@
 
     *Igor Dobryn*
 
+*   Refactor `Ransack::Adapters` from conditionals to classes
+    ([94a404c](https://github.com/activerecord-hackery/ransack/commit/94a404c)).
+
+    *Jon Atack*
 
 ## Version 1.7.0 - 2015-08-20
 ### Added

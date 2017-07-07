@@ -1,20 +1,12 @@
 require 'active_support/core_ext'
-
 require 'ransack/configuration'
-
 require 'ransack/adapters'
-Ransack::Adapters.require_constants
+
+Ransack::Adapters.object_mapper.require_constants
 
 module Ransack
   extend Configuration
   class UntraversableAssociationError < StandardError; end;
-
-  SUPPORTS_ATTRIBUTE_ALIAS =
-  begin
-    ActiveRecord::Base.respond_to?(:attribute_aliases)
-  rescue NameError
-    false
-  end
 end
 
 Ransack.configure do |config|
@@ -30,9 +22,8 @@ require 'ransack/search'
 require 'ransack/ransacker'
 require 'ransack/helpers'
 require 'action_controller'
-
 require 'ransack/translate'
 
-Ransack::Adapters.require_adapter
+Ransack::Adapters.object_mapper.require_adapter
 
 ActionController::Base.helper Ransack::Helpers::FormHelper

@@ -7,20 +7,21 @@
 [![Code Climate](https://codeclimate.com/github/activerecord-hackery/ransack/badges/gpa.svg)]
 (https://codeclimate.com/github/activerecord-hackery/ransack)
 
-Ransack is a rewrite of [MetaSearch]
-(https://github.com/activerecord-hackery/meta_search)
+Ransack is a rewrite of [MetaSearch](https://github.com/activerecord-hackery/meta_search)
 created by [Ernie Miller](http://twitter.com/erniemiller)
-and maintained by [Ryan Bigg](http://twitter.com/ryanbigg),
-[Jon Atack](http://twitter.com/jonatack) and a great group of [contributors]
-(https://github.com/activerecord-hackery/ransack/graphs/contributors).
+and developed/maintained for years by
+[Jon Atack](http://twitter.com/jonatack) and
+[Ryan Bigg](http://twitter.com/ryanbigg) with the help of a great group of
+[contributors](https://github.com/activerecord-hackery/ransack/graphs/contributors).
 While it supports many of the same features as MetaSearch, its underlying
 implementation differs greatly from MetaSearch,
 and backwards compatibility is not a design goal.
 
-Ransack enables the creation of both simple and
-[advanced](http://ransack-demo.herokuapp.com/users/advanced_search)
-search forms for your Ruby on Rails application (demo source code
-[here](https://github.com/activerecord-hackery/ransack_demo)).
+Ransack enables the creation of both
+[simple](http://ransack-demo.herokuapp.com) and
+[advanced](http://ransack-demo.herokuapp.com/users/advanced_search) search forms
+for your Ruby on Rails application
+([demo source code here](https://github.com/activerecord-hackery/ransack_demo)).
 If you're looking for something that simplifies query generation at the model
 or controller layer, you're probably not looking for Ransack (or MetaSearch,
 for that matter). Try [Squeel](https://github.com/activerecord-hackery/squeel)
@@ -29,7 +30,7 @@ instead.
 If you're viewing this at
 [github.com/activerecord-hackery/ransack](https://github.com/activerecord-hackery/ransack),
 you're reading the documentation for the master branch with the latest features.
-[View documentation for the last release (1.7.0).](https://github.com/activerecord-hackery/ransack/tree/v1.7.0)
+[View documentation for the last release (1.8.2).](https://github.com/activerecord-hackery/ransack/tree/v1.8.2)
 
 ## Getting started
 
@@ -49,17 +50,12 @@ In your Gemfile, for the last officially released gem:
 gem 'ransack'
 ```
 
-Or, if you would like to use the latest updates, use the `master` branch:
+If you would like to use the latest updates (recommended), use the `master`
+branch:
 
 ```ruby
 gem 'ransack', github: 'activerecord-hackery/ransack'
 ```
-
-September 2015 update: If you are using Rails 5 (master) and need pagination
-that works with Ransack, there is an
-[updated version of the `will_paginate` gem here](https://github.com/jonatack/will_paginate).
-It is also optimized for Ruby 2.2+. To use it, in your Gemfile:
-`gem 'will_paginate', github: 'jonatack/will_paginate'`.
 
 ## Issues tracker
 
@@ -82,8 +78,7 @@ If you're coming from MetaSearch, things to note:
   1. The default param key for search params is now `:q`, instead of `:search`.
   This is primarily to shorten query strings, though advanced queries (below)
   will still run afoul of URL length limits in most browsers and require a
-  switch to HTTP POST requests. This key is [configurable]
-  (https://github.com/activerecord-hackery/ransack/wiki/Configuration).
+  switch to HTTP POST requests. This key is [configurable](https://github.com/activerecord-hackery/ransack/wiki/Configuration).
 
   2. `form_for` is now `search_form_for`, and validates that a Ransack::Search
   object is passed to it.
@@ -93,7 +88,7 @@ If you're coming from MetaSearch, things to note:
   ActiveRecord::Relation in the case of the ActiveRecord adapter) via a call to
   `Ransack#result`.
 
-####In your controller
+#### In your controller
 
 ```ruby
 def index
@@ -114,13 +109,13 @@ def index
 end
 ```
 
-####In your view
+#### In your view
 
 The two primary Ransack view helpers are `search_form_for` and `sort_link`,
 which are defined in
 [Ransack::Helpers::FormHelper](lib/ransack/helpers/form_helper.rb).
 
-####Ransack's `search_form_for` helper replaces `form_for` for creating the view search form
+#### Ransack's `search_form_for` helper replaces `form_for` for creating the view search form
 
 ```erb
 <%= search_form_for @q do |f| %>
@@ -156,7 +151,7 @@ The `search_form_for` answer format can be set like this:
 <%= search_form_for(@q, format: :json) do |f| %>
 ```
 
-####Ransack's `sort_link` helper creates table headers that are sortable links
+#### Ransack's `sort_link` helper creates table headers that are sortable links
 
 ```erb
 <%= sort_link(@q, :name) %>
@@ -205,20 +200,52 @@ This example toggles the sort directions of both fields, by default
 initially sorting the `last_name` field by ascending order, and the
 `first_name` field by descending order.
 
-The sort link may be displayed without the order indicator arrow by passing
-`hide_indicator: true`:
 
-```erb
-<%= sort_link(@q, :name, hide_indicator: true) %>
+The sort link order indicator arrows may be globally customized by setting a
+`custom_arrows` option in an initializer file like
+`config/initializers/ransack.rb`:
+
+```ruby
+Ransack.configure do |c|
+  c.custom_arrows = {
+    up_arrow: '<i class="custom-up-arrow-icon"></i>',
+    down_arrow: 'U+02193'
+  }
+end
 ```
 
-Alternatively, all sort links may be displayed without the order indicator arrow
-by adding this to an initializer file like `config/initializers/ransack.rb`:
+All sort links may be displayed without the order indicator
+arrows by setting `hide_sort_order_indicators` to true in the initializer file.
+Note that this hides the arrows even if they were customized:
 
 ```ruby
 Ransack.configure do |c|
   c.hide_sort_order_indicators = true
 end
+```
+
+Without setting it globally, individual sort links may be displayed without
+the order indicator arrow by passing `hide_indicator: true` in the sort link:
+
+```erb
+<%= sort_link(@q, :name, hide_indicator: true) %>
+```
+
+#### Ransack's `sort_url` helper is like a `sort_link` but returns only the url
+
+`sort_url` has the same API as `sort_link`:
+
+```erb
+<%= sort_url(@q, :name, default_order: :desc) %>
+```
+
+```erb
+<%= sort_url(@q, :last_name, [:last_name, 'first_name asc']) %>
+```
+
+```erb
+<%= sort_url(@q, :last_name, %i(last_name first_name),
+  default_order: { last_name: 'asc', first_name: 'desc' }) %>
 ```
 
 ### Advanced Mode
@@ -258,11 +285,12 @@ end
 
 Once you've done so, you can make use of the helpers in [Ransack::Helpers::FormBuilder](lib/ransack/helpers/form_builder.rb) to
 construct much more complex search forms, such as the one on the
-[demo page](http://ransack-demo.heroku.com) (source code [here](https://github.com/activerecord-hackery/ransack_demo)).
+[demo app](http://ransack-demo.herokuapp.com/users/advanced_search)
+(source code [here](https://github.com/activerecord-hackery/ransack_demo)).
 
 ### Ransack #search method
 
-Ransack will try to to make the class method `#search` available in your
+Ransack will try to make the class method `#search` available in your
 models, but if `#search` has already been defined elsewhere, you can always use
 the default `#ransack` class method. So the following are equivalent:
 
@@ -378,13 +406,41 @@ query parameters in your URLs.
 <% end %>
 ```
 
+### Search Matchers
+
+List of all possible predicates
+
+* `*_eq` - equal
+* `*_not_eq` - not equal
+* `*_matches` - matches with `LIKE`, e.g. `q[email_matches]=%@gmail.com`
+* Also: `*_does_not_match`, `*_matches_any`, `*_matches_all`, `*_does_not_match_any`, `*_does_not_match_all`
+* `*_lt` - less than
+* `*_lteq` - less than or equal
+* `*_gt` - greater than
+* `*_gteq` - greater than or equal
+* `*_present` - not null and not empty, e.g. `q[name_present]=1` (SQL: `col is not null AND col != ''`)
+* `*_blank` - is null or empty. (SQL: `col is null OR col = ''`)
+* `*_null`, `*_not_null` - is null, is not null
+* `*_in` - match any values in array, e.g. `q[name_in][]=Alice&q[name_in][]=Bob`
+* `*_not_in` - match none of values in array
+* `*_lt_any`, `*_lteq_any`, `*_gt_any`, `*_gteq_any` - Compare to list of values, at least positive. (SQL: `col > value1 OR col > value2`)
+* `*_matches_any`, `*_does_not_match_any` - same as above but with `LIKE`
+* `*_lt_all`, `*_lteq_all`, `*_gt_all`, `*_gteq_all` - Compare to list of values, all positive. (SQL: `col > value1 AND col > value2`)
+* `*_matches_all`, `*_does_not_match_all` - same as above but with `LIKE`
+* `*_not_eq_all` - none of values in a set
+* `*_start`, `*_not_start`, `*_start_any`, `*_start_all`, `*_not_start_any`, `*_not_start_all` - start with, (SQL: `col LIKE 'value%'`)
+* `*_end`, `*_not_end`, `*_end_any`, `*_end_all`, `*_not_end_any`, `*_not_end_all` - end with, (SQL: `col LIKE '%value'`)
+* `*_cont`, `*_cont_any`, `*_cont_all`, `*_not_cont`, `*_not_cont_any`, `*_not_cont_all` - contains value, using `LIKE`
+* `*_true`, `*_false` - is true and is false
+
+(See full list: https://github.com/activerecord-hackery/ransack/blob/master/lib/ransack/locale/en.yml#L15 and [wiki](https://github.com/activerecord-hackery/ransack/wiki/Basic-Searching))
+
 ### Using Ransackers to add custom search functions via Arel
 
 The main premise behind Ransack is to provide access to
 **Arel predicate methods**. Ransack provides special methods, called
 _ransackers_, for creating additional search functions via Arel. More
-information about `ransacker` methods can be found [here in the wiki]
-(https://github.com/activerecord-hackery/ransack/wiki/Using-Ransackers).
+information about `ransacker` methods can be found [here in the wiki](https://github.com/activerecord-hackery/ransack/wiki/Using-Ransackers).
 Feel free to contribute working `ransacker` code examples to the wiki!
 
 ### Problem with DISTINCT selects
@@ -494,16 +550,12 @@ for an `auth_object` key in the options hash which can be used by your own
 overridden methods.
 
 Here is an example that puts all this together, adapted from
-[this blog post by Ernie Miller]
-(http://erniemiller.org/2012/05/11/why-your-ruby-class-macros-might-suck-mine-did/).
+[this blog post by Ernie Miller](http://erniemiller.org/2012/05/11/why-your-ruby-class-macros-might-suck-mine-did/).
 In an `Article` model, add the following `ransackable_attributes` class method
 (preferably private):
 
 ```ruby
 class Article < ActiveRecord::Base
-
-  private
-
   def self.ransackable_attributes(auth_object = nil)
     if auth_object == :admin
       # whitelist all attributes for admin
@@ -513,6 +565,8 @@ class Article < ActiveRecord::Base
       super & %w(title body)
     end
   end
+
+  private_class_method :ransackable_attributes
 end
 ```
 
@@ -520,7 +574,6 @@ Here is example code for the `articles_controller`:
 
 ```ruby
 class ArticlesController < ApplicationController
-
   def index
     @q = Article.ransack(params[:q], auth_object: set_ransack_auth_object)
     @articles = @q.result
@@ -577,8 +630,6 @@ class Employee < ActiveRecord::Base
     where('start_date >= ?', date)
   end
 
-  private
-
   def self.ransackable_scopes(auth_object = nil)
     if auth_object.try(:admin?)
       # allow admin users access to all three methods
@@ -588,6 +639,8 @@ class Employee < ActiveRecord::Base
       %i(activated hired_since)
     end
   end
+
+  private_class_method :ransackable_scopes
 end
 
 Employee.ransack({ activated: true, hired_since: '2013-01-01' })
@@ -598,7 +651,21 @@ Employee.ransack({ salary_gt: 100_000 }, { auth_object: current_user })
 In Rails 3 and 4, if the `true` value is being passed via url params or some
 other mechanism that will convert it to a string, the true value may not be
 passed to the ransackable scope unless you wrap it in an array
-(i.e. `activated: ['true']`). This is currently resolved in Rails 5 :smiley:
+(i.e. `activated: ['true']`). Ransack will take care of changing 'true' into a
+boolean. This is currently resolved in Rails 5 :smiley:
+
+However, perhaps you have `user_id: [1]` and you do not want Ransack to convert
+1 into a boolean. (Values sanitized to booleans can be found in the
+[constants.rb](https://github.com/activerecord-hackery/ransack/blob/master/lib/ransack/constants.rb#L28)).
+To turn this off, and handle type conversions yourself, set
+`sanitize_custom_scope_booleans` to false in an initializer file like
+config/initializers/ransack.rb:
+
+```ruby
+Ransack.configure do |c|
+  c.sanitize_custom_scope_booleans = false
+end
+```
 
 Scopes are a recent addition to Ransack and currently have a few caveats:
 First, a scope involving child associations needs to be defined in the parent
@@ -607,8 +674,7 @@ argument are not easily usable yet, because the array currently needs to be
 wrapped in an array to function (see
 [this issue](https://github.com/activerecord-hackery/ransack/issues/404)),
 which is not compatible with Ransack form helpers. For this use case, it may be
-better for now to use [ransackers]
-(https://github.com/activerecord-hackery/ransack/wiki/Using-Ransackers) instead,
+better for now to use [ransackers](https://github.com/activerecord-hackery/ransack/wiki/Using-Ransackers) instead,
 where feasible. Pull requests with solutions and tests are welcome!
 
 ### Grouping queries by OR instead of AND
@@ -732,9 +798,8 @@ en:
 
 ## Mongoid
 
-Ransack now works with Mongoid in the same way as Active Record, except that
-with Mongoid, associations are not currently supported. A demo app may be found
-[here](http://ransack-mongodb-demo.herokuapp.com/) and the demo source code is
+Ransack works with Mongoid in the same way as Active Record, except that with
+Mongoid, associations are not currently supported. Demo source code may be found
 [here](https://github.com/Zhomart/ransack-mongodb-demo). A `result` method
 called on a `ransack` search returns a `Mongoid::Criteria` object:
 
@@ -746,16 +811,10 @@ called on a `ransack` search returns a `Mongoid::Criteria` object:
   @people = @q.result.active.order_by(updated_at: -1).limit(10)
 ```
 
-_NOTE: Ransack currently works with either Active Record or Mongoid, but not
+NOTE: Ransack currently works with either Active Record or Mongoid, but not
 both in the same application. If both are present, Ransack will default to
-Active Record only. Here is the code containing the logic:_
-
-```ruby
-  @current_adapters ||= {
-    :active_record => defined?(::ActiveRecord::Base),
-    :mongoid => defined?(::Mongoid) && !defined?(::ActiveRecord::Base)
-  }
-```
+Active Record only. The logic is contained in
+`Ransack::Adapters#instantiate_object_mapper` should you need to override it.
 
 ## Semantic Versioning
 

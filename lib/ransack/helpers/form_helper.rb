@@ -54,6 +54,18 @@ module Ransack
         link_to(s.name, url(routing_proxy, s.url_options), s.html_options(args))
       end
 
+      # +sort_url+
+      # <%= sort_url(@q, :created_at, default_order: :desc) %>
+      #
+      def sort_url(search_object, attribute, *args)
+        search, routing_proxy = extract_search_and_routing_proxy(search_object)
+        unless Search === search
+          raise TypeError, 'First argument must be a Ransack::Search!'
+        end
+        s = SortLink.new(search, attribute, args, params)
+        url(routing_proxy, s.url_options)
+      end
+
       private
 
         def options_for(record)
@@ -97,6 +109,14 @@ module Ransack
           @default_order  = @options.delete :default_order
         end
 
+        def up_arrow
+          Ransack.options[:up_arrow]
+        end
+
+        def down_arrow
+          Ransack.options[:down_arrow]
+        end
+
         def name
           [ERB::Util.h(@label_text), order_indicator]
           .compact
@@ -121,8 +141,11 @@ module Ransack
         private
 
           def parameters_hash(params)
-            return params unless params.respond_to?(:to_unsafe_h)
-            params.to_unsafe_h
+            if ::ActiveRecord::VERSION::MAJOR == 5 && params.respond_to?(:to_unsafe_h)
+              params.to_unsafe_h
+            else
+              params
+            end
           end
 
           def extract_sort_fields_and_mutate_args!(args)
@@ -187,16 +210,15 @@ module Ransack
 
           def order_indicator
             return if @hide_indicator || no_sort_direction_specified?
-            direction_arrow
+            if @current_dir == 'desc'.freeze
+              up_arrow
+            else
+              down_arrow
+            end
           end
 
           def no_sort_direction_specified?(dir = @current_dir)
-            !['asc'.freeze, 'desc'.freeze].freeze.include?(dir)
-          end
-
-          def direction_arrow
-            return Constants::DESC_ARROW if @current_dir == 'desc'.freeze
-            Constants::ASC_ARROW
+            dir != 'asc'.freeze && dir != 'desc'.freeze
           end
 
           def direction_text(dir)

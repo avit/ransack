@@ -83,6 +83,10 @@ module Ransack
         @template.sort_link @object, attribute, *args
       end
 
+      def sort_url(attribute, *args)
+        @template.sort_url @object, attribute, *args
+      end
+
       def condition_fields(*args, &block)
         search_fields(:c, args, block)
       end
@@ -176,9 +180,9 @@ module Ransack
 
       def sort_array
         [
-          [Constants::ASC,  object.translate(Constants::ASC)],
-          [Constants::DESC, object.translate(Constants::DESC)]
-        ]
+          ['asc'.freeze,  object.translate('asc'.freeze)].freeze,
+          ['desc'.freeze, object.translate('desc'.freeze)].freeze
+        ].freeze
       end
 
       def combinator_choices

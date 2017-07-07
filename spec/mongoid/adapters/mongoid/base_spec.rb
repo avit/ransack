@@ -20,7 +20,9 @@ module Ransack
 
           context 'with scopes' do
             before do
-              Person.stub :ransackable_scopes => [:active, :over_age]
+              allow(Person)
+              .to receive(:ransackable_scopes)
+              .and_return([:active, :over_age])
             end
 
             it "applies true scopes" do
@@ -62,6 +64,27 @@ module Ransack
 
             s = Person.ransack(term_cont: 'nomatch')
             expect(s.result.to_a).to eq []
+          end
+
+          it 'makes aliases available to subclasses' do
+            yngwie = Musician.create!(name: 'Yngwie Malmsteen')
+
+            musicians = Musician.ransack(term_cont: 'ngw').result
+            expect(musicians).to eq([yngwie])
+          end
+
+          it 'handles naming collisions gracefully' do
+            frank = Person.create!(name: 'Frank Stallone')
+
+            people = Person.ransack(term_cont: 'allon').result
+            expect(people).to eq([frank])
+
+            Class.new(Article) do
+              ransack_alias :term, :title
+            end
+
+            people = Person.ransack(term_cont: 'allon').result
+            expect(people).to eq([frank])
           end
         end
 
@@ -272,8 +295,6 @@ module Ransack
         end
 
         describe '#ransackable_associations' do
-          before { pending "not implemented for mongoid" }
-
           subject { Person.ransackable_associations }
 
           it { should include 'parent' }
